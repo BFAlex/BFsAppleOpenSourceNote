@@ -1,0 +1,332 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>objc-msg-hppa-nolock.s</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">objc-msg-hppa-nolock.s&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="objc-msg-hppa-nolock.s">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+/*
+ <span class="enscript-keyword">*</span> Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_START@
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> Portions Copyright (c) 1999 Apple Computer, Inc.  All Rights
+ <span class="enscript-keyword">*</span> Reserved.  This file contains Original Code and/or Modifications of
+ <span class="enscript-keyword">*</span> Original Code as defined in and that are subject to the Apple Public
+ <span class="enscript-keyword">*</span> Source License Version 1.1 (the <span class="enscript-string">&quot;License&quot;</span>).  You may not use this file
+ <span class="enscript-keyword">*</span> except in compliance with the License.  Please obtain a copy of the
+ <span class="enscript-keyword">*</span> License at <a href="http://www.apple.com/publicsource">http://www.apple.com/publicsource</a> and read it before using
+ <span class="enscript-keyword">*</span> this file.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> The Original Code and all software distributed under the License are
+ <span class="enscript-keyword">*</span> distributed on an <span class="enscript-string">&quot;AS IS&quot;</span> basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ <span class="enscript-keyword">*</span> EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ <span class="enscript-keyword">*</span> INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ <span class="enscript-keyword">*</span> FITNESS FOR A PARTICULAR PURPOSE OR NON- INFRINGEMENT.  Please see the
+ <span class="enscript-keyword">*</span> License for the specific language governing rights and limitations
+ <span class="enscript-keyword">*</span> under the License.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_END@
+ <span class="enscript-keyword">*/
+</span>#ifdef KERNEL
+#define OBJC_LOCK_ROUTINE _simple_lock
+#else
+<span class="enscript-comment">; _objc_entryPoints and _objc_exitPoints are used by moninitobjc() to setup
+; objective-C messages for profiling.  The are made private_externs when in
+</span><span class="enscript-comment">; a shared library.
+	.reference _moninitobjc
+</span>	<span class="enscript-keyword">.const
+</span>	<span class="enscript-keyword">.align</span> 2
+.globl _objc_entryPoints
+<span class="enscript-function-name">_objc_entryPoints:</span>
+	<span class="enscript-keyword">.long</span> _objc_msgSend
+	<span class="enscript-keyword">.long</span> _objc_msgSendSuper
+	<span class="enscript-keyword">.long</span> 0
+
+.globl _objc_exitPoints
+<span class="enscript-function-name">_objc_exitPoints:</span>
+	<span class="enscript-keyword">.long</span> Lexit1
+	<span class="enscript-keyword">.long</span> Lexit5
+	<span class="enscript-keyword">.long</span> 0
+	<span class="enscript-keyword">
+</span>#define OBJC_LOCK_ROUTINE _spin_lock
+#endif /* KERNEL */
+
+#define isa 0
+#define cache 32
+#define mask  0
+#define buckets 8
+#define method_name 0
+#define method_imp 8
+
+
+<span class="enscript-comment">; optimized for hppa: 20? clocks (best case) + 6 clocks / probe
+
+</span>        <span class="enscript-keyword">.text
+</span>	<span class="enscript-keyword">.align</span> 4
+	<span class="enscript-keyword">.globl</span> _objc_msgSend
+	<span class="enscript-keyword">
+</span><span class="enscript-function-name">_objc_msgSend:</span>
+        <span class="enscript-keyword">comib,&lt;&gt;,n</span>  0,%r26,L0		<span class="enscript-comment">; if (self) goto normalcase
+	nop
+</span>        <span class="enscript-keyword">bv</span>      0(%r2)                  <span class="enscript-comment">; else return null
+        copy    0,%r28                  ; &lt;delay slot&gt; return val = 0
+</span><span class="enscript-function-name">L0:</span>     
+        <span class="enscript-keyword">ldw</span>      isa(0,%r26),%r19       <span class="enscript-comment">;     class = self-&gt;isa;
+        ldw      cache(0,%r19),%r20     ;     cache = class-&gt;cache
+</span>        <span class="enscript-keyword">ldw</span>      mask(0,%r20),%r21      <span class="enscript-comment">;     mask = cache-&gt;mask
+        ldo      buckets(%r20),%r20     ;     buckets = cache-&gt;buckets
+</span>        <span class="enscript-keyword">and</span>      %r21,%r25,%r22         <span class="enscript-comment">;     index = selector &amp; mask;
+L1:
+</span>        <span class="enscript-keyword">ldwx,s</span>   %r22(0,%r20),%r19	<span class="enscript-comment">;     method = cache-&gt;buckets[index];
+        comib,=,n 0,%r19,LcacheMiss	;     if (method == NULL)
+</span>        <span class="enscript-keyword">ldw</span>     method_name(0,%r19),%r1 <span class="enscript-comment">; 
+        addi    1,%r22,%r22             ; ++index
+</span>        <span class="enscript-keyword">comb,&lt;&gt;</span> %r1, %r25, L1		<span class="enscript-comment">; if (name!=sel) continue loop
+        and     %r21,%r22,%r22          ; &lt;delay slot&gt; index &amp;=mask
+</span>        <span class="enscript-keyword">ldw</span>     method_imp(0,%r19),%r19
+<span class="enscript-function-name">Lexit1:</span>
+        <span class="enscript-keyword">bv,n</span>     0(%r19)                <span class="enscript-comment">;    goto *imp;  (nullify delay)
+
+</span>#ifdef MONINIT
+        <span class="enscript-keyword">.space</span> 128                      <span class="enscript-comment">; /* area for moninitobjc to write */
+#endif
+</span>
+<span class="enscript-function-name">LcacheMiss:</span>
+<span class="enscript-comment">; We have to save all the register based arguments (including floating
+; point) before calling _class_lookupMethodAndLoadCache.  This is because
+</span><span class="enscript-comment">; we do not know what arguments were passed to us, and the arguments are
+; not guaranteed to be saved across procedure calls (they are all caller-saved)
+</span><span class="enscript-comment">; We also have to save the return address (since we did not save it on entry).
+
+</span>
+        <span class="enscript-keyword">copy</span>    %r30,%r19
+        <span class="enscript-keyword">ldo</span>     128(%r30),%r30          <span class="enscript-comment">; Allocate space on stack
+        stwm    %r2,4(0,%r19)           ; Save return pointer
+</span>        <span class="enscript-keyword">stwm</span>    %r23,4(0,%r19)          <span class="enscript-comment">; Save old args
+        stwm    %r24,4(0,%r19)          ;
+</span>        <span class="enscript-keyword">stwm</span>    %r25,4(0,%r19)          <span class="enscript-comment">;
+        stwm    %r26,4(0,%r19)          ;
+</span>#ifndef KERNEL
+        <span class="enscript-keyword">fstds,mb</span>  %fr4,4(0,%r19)        <span class="enscript-comment">; Save floating point args
+        fstds,mb  %fr5,8(0,%r19)        ;    mb (modify before) is used instead
+</span>        <span class="enscript-keyword">fstds,mb</span>  %fr6,8(0,%r19)        <span class="enscript-comment">;    of ma (as is implicit in above
+        fstds,mb  %fr7,8(0,%r19)        ;    stores) with an initial value of 4
+</span><span class="enscript-comment">                                        ;    so that doubles are aligned
+                                        ;    to 8 byte boundaries.
+</span><span class="enscript-comment">                                        ; Arg 1 (selector) is the same
+#endif /* KERNEL */		
+</span>
+        <span class="enscript-keyword">stw</span>     %r28,8(0,%r19)          <span class="enscript-comment">; save return struct ptr
+        ldw      isa(0,%r26),%r26       ; arg 0 = self-&gt;isa
+</span>        <span class="enscript-keyword">CALL_EXTERN(__class_lookupMethodAndLoadCache)
+</span>
+        <span class="enscript-keyword">ldo</span>     -128(%r30),%r30         <span class="enscript-comment">;   deallocate
+        copy    %r30,%r19               ;
+</span>        <span class="enscript-keyword">ldwm</span>    4(0,%r19),%r2           <span class="enscript-comment">; restore everything
+        ldwm    4(0,%r19),%r23          ; 
+</span>        <span class="enscript-keyword">ldwm</span>    4(0,%r19),%r24          <span class="enscript-comment">;
+        ldwm    4(0,%r19),%r25          ;
+</span>        <span class="enscript-keyword">ldwm</span>    4(0,%r19),%r26          <span class="enscript-comment">;
+#ifndef KERNEL
+</span>        <span class="enscript-keyword">fldds,mb</span>  4(0,%r19),%fr4        <span class="enscript-comment">; see comment above about alignment
+        fldds,mb  8(0,%r19),%fr5        ;
+</span>        <span class="enscript-keyword">fldds,mb</span>  8(0,%r19),%fr6        <span class="enscript-comment">;
+        fldds,mb  8(0,%r19),%fr7        ;
+</span>#endif /* KERNEL */		
+        <span class="enscript-keyword">ldw</span>     8(0,%r19),%r20          <span class="enscript-comment">; get ret structure ptr
+
+</span>        <span class="enscript-keyword">copy</span>    %r28,%r19
+        <span class="enscript-keyword">copy</span>    %r20,%r28               <span class="enscript-comment">; restore ret structure ptr
+Lexit2:
+</span>        <span class="enscript-keyword">bv,n</span>    0(%r19)                 <span class="enscript-comment">;  goto *imp   (nullify delay)
+
+</span>#ifdef MONINIT
+        <span class="enscript-keyword">.space</span> 128                      <span class="enscript-comment">; /* area for moninitobjc to write */
+#endif
+</span>
+
+
+
+
+#define receiver 0
+#define class 4
+
+        <span class="enscript-keyword">.globl</span> _objc_msgSendSuper
+<span class="enscript-function-name">_objc_msgSendSuper:</span>
+        <span class="enscript-keyword">ldw</span>      class(0,%r26),%r19     <span class="enscript-comment">;     class = caller-&gt;class;
+        ldw      cache(0,%r19),%r20     ;     cache = class-&gt;cache
+</span>        <span class="enscript-keyword">ldw</span>      mask(0,%r20),%r21      <span class="enscript-comment">;     mask = cache-&gt;mask
+        ldo      buckets(%r20),%r20     ;     buckets = cache-&gt;buckets
+</span>        <span class="enscript-keyword">and</span>      %r21,%r25,%r22         <span class="enscript-comment">;     index = selector &amp; mask;
+LS1:					;
+</span>        <span class="enscript-keyword">ldwx,s</span>   %r22(0,%r20),%r19      <span class="enscript-comment">;     method = cache-&gt;buckets[index];
+        comib,=,n 0,%r19,LS2           ;     if (method == NULL)
+</span>        <span class="enscript-keyword">ldw</span>     method_name(0,%r19),%r1<span class="enscript-comment">; 
+        addi    1,%r22,%r22             ; ++index
+</span>        <span class="enscript-keyword">comb,&lt;&gt;</span> %r1, %r25, LS1          <span class="enscript-comment">; if (name!=sel) continue loop
+        and     %r21,%r22,%r22          ; &lt;delay slot&gt; index &amp;=mask
+</span>        <span class="enscript-keyword">ldw</span>     method_imp(0,%r19),%r19
+        <span class="enscript-keyword">ldw</span>     receiver(0,%r26),%r26   <span class="enscript-comment">;     self = caller-&gt;receiver;
+Lexit5:  
+</span>        <span class="enscript-keyword">bv,n</span>     0(%r19)                <span class="enscript-comment">;    goto *imp;  (nullify delay)
+#ifdef MONINIT
+</span>        <span class="enscript-keyword">.space</span> 128                      <span class="enscript-comment">; /* area for moninitobjc to write */
+#endif
+</span>
+<span class="enscript-comment">                                        ;
+LS2:					;
+</span>        <span class="enscript-keyword">copy</span>    %r30,%r19
+        <span class="enscript-keyword">ldo</span>     128(%r30),%r30          <span class="enscript-comment">; Allocate space on stack
+        stwm    %r2,4(0,%r19)           ; Save return pointer
+</span>        <span class="enscript-keyword">stwm</span>    %r23,4(0,%r19)          <span class="enscript-comment">; Save old args
+        stwm    %r24,4(0,%r19)          ;
+</span>        <span class="enscript-keyword">stwm</span>    %r25,4(0,%r19)          <span class="enscript-comment">;
+        stwm    %r26,4(0,%r19)          ;
+</span>#ifndef KERNEL		
+        <span class="enscript-keyword">fstds,mb</span>  %fr4,4(0,%r19)        <span class="enscript-comment">; Save floating point args
+        fstds,mb  %fr5,8(0,%r19)        ;    mb (modify before) is used instead
+</span>        <span class="enscript-keyword">fstds,mb</span>  %fr6,8(0,%r19)        <span class="enscript-comment">;    of ma (as is implicit in above
+        fstds,mb  %fr7,8(0,%r19)        ;    stores) with an initial value of 4
+</span><span class="enscript-comment">                                        ;    so that doubles are aligned
+                                        ;    to 8 byte boundaries.
+</span><span class="enscript-comment">                                        ; Arg 1 (selector) is the same
+#endif /* KERNEL */										
+</span>        <span class="enscript-keyword">stw</span>     %r28,8(0,%r19)          <span class="enscript-comment">; save return struct ptr
+        ldw      class(0,%r26),%r26     ; arg 0 = caller-&gt;class;
+</span>        <span class="enscript-keyword">CALL_EXTERN_AGAIN(__class_lookupMethodAndLoadCache)
+</span>
+        <span class="enscript-keyword">ldo</span>     -128(%r30),%r30         <span class="enscript-comment">;   deallocate
+        copy    %r30,%r19               ;
+</span>        <span class="enscript-keyword">ldwm</span>    4(0,%r19),%r2           <span class="enscript-comment">; restore everything
+        ldwm    4(0,%r19),%r23          ; 
+</span>        <span class="enscript-keyword">ldwm</span>    4(0,%r19),%r24          <span class="enscript-comment">;
+        ldwm    4(0,%r19),%r25          ;
+</span>        <span class="enscript-keyword">ldwm</span>    4(0,%r19),%r26          <span class="enscript-comment">;
+#ifndef KERNEL				
+</span>        <span class="enscript-keyword">fldds,mb</span>  4(0,%r19),%fr4        <span class="enscript-comment">; see comment above about alignment
+        fldds,mb  8(0,%r19),%fr5        ;
+</span>        <span class="enscript-keyword">fldds,mb</span>  8(0,%r19),%fr6        <span class="enscript-comment">;
+        fldds,mb  8(0,%r19),%fr7        ;
+</span>#endif /* KERNEL */										
+        <span class="enscript-keyword">ldw</span>     8(0,%r19),%r20          <span class="enscript-comment">; get ret structure ptr
+        ldw      receiver(0,%r26),%r26  ;     self = caller-&gt;receiver;
+</span>        <span class="enscript-keyword">copy</span>    %r28,%r19
+        <span class="enscript-keyword">copy</span>    %r20,%r28
+<span class="enscript-function-name">Lexit6:</span>  bv,n    0(%r19)                 <span class="enscript-comment">;  goto *imp   (nullify delay)
+
+</span>#ifdef MONINIT
+        <span class="enscript-keyword">.space</span> 128                      <span class="enscript-comment">; /* area for moninitobjc to write */
+#endif
+</span>
+        <span class="enscript-keyword">
+</span>.objc_meth_var_names
+.align 1
+<span class="enscript-function-name">L30:</span>    .ascii <span class="enscript-string">&quot;forward::\0&quot;</span>
+
+.objc_message_refs
+.align 2
+<span class="enscript-function-name">L31:</span>    .long L30
+
+.cstring
+.align 1
+<span class="enscript-function-name">L32:</span>    .ascii <span class="enscript-string">&quot;Does not recognize selector %s\0&quot;</span>
+
+.text
+.align 1
+<span class="enscript-comment">;
+; NOTE: Because the stack grows from low mem to high mem on this machine
+</span><span class="enscript-comment">; and the args go the other way, the marg_list pointer is to the first argument
+; and subsequent arguments are at NEGATIVE offsets from the marg_list.
+</span><span class="enscript-comment">; This means that marg_getValue() and related macros will have to be adjusted
+; appropriately.
+</span><span class="enscript-comment">;
+	.globl __objc_msgForward
+</span><span class="enscript-function-name">__objc_msgForward:</span>
+        <span class="enscript-keyword">stw</span>     %r2,-20(0,%r30)         <span class="enscript-comment">; save rp
+        ldo     64(%r30),%r30           ; create frame area (no locals needed)
+</span>        <span class="enscript-keyword">ldil</span>    L`L31,%r1
+        <span class="enscript-keyword">ldo</span>     R`L31(%r1),%r19
+        <span class="enscript-keyword">ldw</span>     0(0,%r19),%r19
+        <span class="enscript-keyword">combt,=,n</span> %r19, %r25,L34	<span class="enscript-comment">; if (sel==@selector(forward::))
+        ldo     -112(%r30),%r20         ; ptr to arg3 homing area
+</span>        <span class="enscript-keyword">stwm</span>    %r23,4(0,%r20)          <span class="enscript-comment">; Mirror registers onto stack
+        stwm    %r24,4(0,%r20)          ;
+</span>        <span class="enscript-keyword">stwm</span>    %r25,4(0,%r20)          <span class="enscript-comment">;
+        stwm    %r26,4(0,%r20)          ;
+</span>        <span class="enscript-keyword">
+</span>        <span class="enscript-keyword">copy</span>    %r25,%r24
+        <span class="enscript-keyword">copy</span>    %r19,%r25               <span class="enscript-comment">; [self forward:sel :marg_list]
+
+</span>        <span class="enscript-keyword">bl</span>      _objc_msgSend,%r2
+        <span class="enscript-keyword">copy</span>    %r20,%r23               <span class="enscript-comment">; &lt;delay slot&gt; copy original sel
+
+</span>        <span class="enscript-keyword">ldo</span>     -64(%r30),%r30		<span class="enscript-comment">; deallocate
+        ldw     -20(0,%r30),%r2		; restore rp
+</span>        <span class="enscript-keyword">bv,n</span>    0(%r2)			<span class="enscript-comment">; return
+L34:
+</span>        <span class="enscript-keyword">ldil</span>    L`L32,%r1
+        <span class="enscript-keyword">ldo</span>     R`L32(%r1),%r25
+        <span class="enscript-keyword">copy</span>    %r19,%r24                <span class="enscript-comment">; no need to clean up.
+        BRANCH_EXTERN(__objc_error)
+</span>
+
+<span class="enscript-comment">; Algorithm is as follows:
+; . Calculate how much stack size is needed for any arguments not in the
+</span><span class="enscript-comment">;   general registers and allocate space on stack.
+; . Restore general argument regs from the bottom of the marg_list.
+</span><span class="enscript-comment">; . Restore fp argument regs from the same area.
+;   (The first two args in the marg list are always old obj and old SEL.)
+</span><span class="enscript-comment">; . Call the new method.
+	.globl _objc_msgSendv
+</span><span class="enscript-function-name">_objc_msgSendv:</span>
+<span class="enscript-comment">                                        ; objc_msgSendv(self, sel, size, margs)
+        stw     %r2,-20(0,%r30)         ; Save rp
+</span>        <span class="enscript-keyword">stw</span>     %r4,-36(0,%r30)         <span class="enscript-comment">; Save callee-saved r4 
+        copy    %r30,%r4                ; Save old sp vale
+</span>        <span class="enscript-keyword">ldo</span>     95(%r24),%r19           <span class="enscript-comment">; Calculate frame size, rounded
+        depi    0,31,6,%r19             ; up to 64 byte boundary...
+</span>
+        <span class="enscript-keyword">add</span>     %r19,%r30,%r30          <span class="enscript-comment">; Allocate frame area (no locals)
+        copy    %r24,%r20               ; r20 now holds arg size
+</span>        <span class="enscript-keyword">ldo</span>     -16(%r23),%r21          <span class="enscript-comment">; r21 now holds marg_list+16
+        ldws    0(0,%r21),%r23          ; Get old general register args (dont
+</span>        <span class="enscript-keyword">ldws</span>    4(0,%r21),%r24          <span class="enscript-comment">; need first two: always self &amp; SEL)
+#ifndef KERNEL		
+</span>        <span class="enscript-keyword">fldds,mb</span>   0(0,%r21),%fr7          <span class="enscript-comment">; Mirror to fp regs
+        fldws   4(0,%r21),%fr6          ; 
+</span>#endif /* KERNEL */		
+
+        <span class="enscript-keyword">ldo</span>     -52(%r30),%r22          <span class="enscript-comment">; newly allocated stack area.
+        ldo     -8(%r20),%r20           ; Size -= 8
+</span>        <span class="enscript-keyword">comibf,&lt;,n</span> 0,%r20,L36
+<span class="enscript-function-name">L35:</span>    ldws,mb -4(0,%r21),%r19         <span class="enscript-comment">; while(size&gt;0)
+        addibf,&lt;= -4,%r20,L35		;  { *(dest--) = *(src--); size-=4; }
+</span>        <span class="enscript-keyword">stws,ma</span> %r19,-4(0,%r22)         <span class="enscript-comment">; &lt;delay slot&gt;
+L36:    bl      _objc_msgSend,%r2
+</span>        <span class="enscript-keyword">nop
+</span>        <span class="enscript-keyword">copy</span>    %r4,%r30                <span class="enscript-comment">; deallocate
+        ldw     -36(0,%r30), %r4
+</span>        <span class="enscript-keyword">ldw</span>     -20(0,%r30), %r2
+<span class="enscript-function-name">Lexit9:</span>
+        <span class="enscript-keyword">bv,n</span>    0(%r2)
+
+
+</pre>
+<hr />
+</body></html>

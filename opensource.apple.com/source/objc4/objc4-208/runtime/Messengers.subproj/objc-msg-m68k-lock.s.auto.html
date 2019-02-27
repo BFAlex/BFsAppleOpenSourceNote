@@ -1,0 +1,308 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>objc-msg-m68k-lock.s</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">objc-msg-m68k-lock.s&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="objc-msg-m68k-lock.s">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+/*
+ <span class="enscript-keyword">*</span> Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_START@
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> Portions Copyright (c) 1999 Apple Computer, Inc.  All Rights
+ <span class="enscript-keyword">*</span> Reserved.  This file contains Original Code and/or Modifications of
+ <span class="enscript-keyword">*</span> Original Code as defined in and that are subject to the Apple Public
+ <span class="enscript-keyword">*</span> Source License Version 1.1 (the <span class="enscript-string">&quot;License&quot;</span>).  You may not use this file
+ <span class="enscript-keyword">*</span> except in compliance with the License.  Please obtain a copy of the
+ <span class="enscript-keyword">*</span> License at <a href="http://www.apple.com/publicsource">http://www.apple.com/publicsource</a> and read it before using
+ <span class="enscript-keyword">*</span> this file.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> The Original Code and all software distributed under the License are
+ <span class="enscript-keyword">*</span> distributed on an <span class="enscript-string">&quot;AS IS&quot;</span> basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ <span class="enscript-keyword">*</span> EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ <span class="enscript-keyword">*</span> INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ <span class="enscript-keyword">*</span> FITNESS FOR A PARTICULAR PURPOSE OR NON- INFRINGEMENT.  Please see the
+ <span class="enscript-keyword">*</span> License for the specific language governing rights and limitations
+ <span class="enscript-keyword">*</span> under the License.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_END@
+ <span class="enscript-keyword">*/
+</span>#ifndef KERNEL
+| _objc_entryPoints and _objc_exitPoints are used by moninitobjc() to setup
+| objective-C messages for profiling.  The are made private_externs when in
+| a shared library.
+	<span class="enscript-keyword">.reference</span> _moninitobjc
+	<span class="enscript-keyword">.const
+</span>.globl _objc_entryPoints
+<span class="enscript-function-name">_objc_entryPoints:</span>
+	<span class="enscript-keyword">.long</span> _objc_msgSend
+	<span class="enscript-keyword">.long</span> _objc_msgSendSuper
+	<span class="enscript-keyword">.long</span> _objc_msgSendv
+	<span class="enscript-keyword">.long</span> 0
+
+.globl _objc_exitPoints
+<span class="enscript-function-name">_objc_exitPoints:</span>
+	<span class="enscript-keyword">.long</span> Lexit1
+	<span class="enscript-keyword">.long</span> Lexit2
+	<span class="enscript-keyword">.long</span> Lexit3
+	<span class="enscript-keyword">.long</span> Lexit4
+	<span class="enscript-keyword">.long</span> Lexit5
+	<span class="enscript-keyword">.long</span> Lexit6
+	<span class="enscript-keyword">.long</span> Lexit7
+	<span class="enscript-keyword">.long</span> Lexit8
+	<span class="enscript-keyword">.long</span> 0
+#endif /* KERNEL */
+
+	<span class="enscript-keyword">self</span> = 4
+	<span class="enscript-keyword">selector</span> = 8
+	<span class="enscript-keyword">cache</span> = 32
+	<span class="enscript-keyword">buckets</span> = 8
+	<span class="enscript-keyword">method_imp</span> = 8
+
+| optimized for 68040: 27 clocks (best case) + 16 clocks / probe
+
+	<span class="enscript-keyword">.text
+</span>	<span class="enscript-keyword">.align</span> 1
+	<span class="enscript-keyword">.globl</span> _objc_msgSend
+<span class="enscript-function-name">_objc_msgSend:</span>
+	<span class="enscript-keyword">movel</span> sp@(self),d0		| (1)
+	<span class="enscript-keyword">movel</span> d0,a0			| (1)
+	<span class="enscript-keyword">andl</span> __objc_multithread_mask,d0	| (1) if (_objc_multithread_mask == 0)
+	<span class="enscript-keyword">jne</span> L1				| (2)   goto lock<span class="enscript-comment">;
+	tstl a0				|     if (self != nil)
+</span>	<span class="enscript-keyword">jne</span> L11				|	continue with objc_msgSend
+        <span class="enscript-keyword">movel</span> __objc_msgNil,a0		| (?) load nil object handler
+        <span class="enscript-keyword">tstl</span> a0				| (?) If NULL just return and dont do anything
+        <span class="enscript-keyword">jeq</span> L10				| (?)
+        <span class="enscript-keyword">jbsr</span> a0@			| (?) call __objc_msgNil<span class="enscript-comment">;
+	clrl d0				| (1) zero d0, just in case nil handler changed them
+</span>	<span class="enscript-keyword">movel</span> d0,a0			| (1) zero a0, just in case nil handler changed them
+<span class="enscript-function-name">L10:</span>	rts				|
+<span class="enscript-function-name">L1:</span>	movel a0@,a0			| (1) class = self-&gt;isa<span class="enscript-comment">;
+	movel a1,sp@-			| (2) (save a1)
+</span>	<span class="enscript-keyword">movel</span> a0@(cache),a1		| (1) cache = class-&gt;cache<span class="enscript-comment">;
+	movel sp@(selector+4),d1	| (1) index = selector;
+</span><span class="enscript-function-name">L2:</span>	andl a1@,d1			| (1) index &amp;= cache-&gt;mask<span class="enscript-comment">;
+	movel a1@(buckets,d1:l:4),d0	| (4) method = cache-&gt;buckets[index];
+</span>	<span class="enscript-keyword">movel</span> d0,a0			| (1) if (method == NULL)
+	<span class="enscript-keyword">jne</span> L3				| (2)   goto cache_miss<span class="enscript-comment">;
+	jra L5				|
+</span><span class="enscript-function-name">L3:</span>	movel sp@(selector+4),d0	| (1)
+	<span class="enscript-keyword">cmpl</span> a0@,d0			| (1) if (method_name == selector)
+	<span class="enscript-keyword">jeq</span> L4				| (2)   goto cache_hit<span class="enscript-comment">;
+	addql #1,d1			|     index++
+</span>	<span class="enscript-keyword">jra</span> L2				|     goto loop<span class="enscript-comment">;
+L4:	movel a0@(method_imp),a0	| (1) imp = method-&gt;method_imp;
+</span>	<span class="enscript-keyword">movel</span> sp@+,a1			| (1) (restore a1)
+<span class="enscript-function-name">Lexit1:</span>	jmp a0@				| (3) goto *imp<span class="enscript-comment">;
+	.space 22			| /* area for moninitobjc to write */
+</span><span class="enscript-function-name">L5:</span>	movel sp@(self+4),a0		|     cache_miss:
+	<span class="enscript-keyword">movel</span> sp@(selector+4),sp@-	|     imp =
+	<span class="enscript-keyword">movel</span> a0@,sp@-			|     _class_lookupMethodAndLoadCache
+	<span class="enscript-keyword">CALL_EXTERN(__class_lookupMethodAndLoadCache)</span>	|     (class, selector)<span class="enscript-comment">;
+	addql #8,sp			|
+</span>	<span class="enscript-keyword">movel</span> d0,a0			|
+	<span class="enscript-keyword">movel</span> sp@+,a1			|     (restore a1)
+<span class="enscript-function-name">Lexit2:</span>	jmp a0@				|     goto *imp<span class="enscript-comment">;
+	.space 22			| /* area for moninitobjc to write */
+</span>
+
+
+| locking version of objc_msgSend:
+
+<span class="enscript-function-name">L11:</span>	clrb _messageLock+1		|     (workaround 040 bug)
+	<span class="enscript-keyword">tas</span> _messageLock		|     mutex_lock (messageLock)<span class="enscript-comment">;
+	jpl L24				|
+</span>	<span class="enscript-keyword">jra</span> L11				|
+<span class="enscript-function-name">L24:</span>	movel a0@,a0			|     class = self-&gt;isa<span class="enscript-comment">;
+	movel a1,sp@-			|     (save a1)
+</span>	<span class="enscript-keyword">movel</span> a0@(cache),a1		|     cache = class-&gt;cache<span class="enscript-comment">;
+	movel sp@(selector+4),d1	|     index = selector;
+</span><span class="enscript-function-name">L12:</span>	andl a1@,d1			|     index &amp;= cache-&gt;mask<span class="enscript-comment">;
+	movel a1@(buckets,d1:l:4),d0	|     method = cache-&gt;buckets[index];
+</span>	<span class="enscript-keyword">movel</span> d0,a0			|     if (method == NULL)
+	<span class="enscript-keyword">jne</span> L13				|	goto cache_miss<span class="enscript-comment">;
+	jra L15				|
+</span><span class="enscript-function-name">L13:</span>	movel sp@(selector+4),d0	|    
+	<span class="enscript-keyword">cmpl</span> a0@,d0			|     if (method_name == selector)
+	<span class="enscript-keyword">jeq</span> L14				|	goto cache_hit<span class="enscript-comment">;
+	addql #1,d1			|     index++
+</span>	<span class="enscript-keyword">jra</span> L12				|     goto loop<span class="enscript-comment">;
+L14:	movel a0@(method_imp),a0	|     imp = method-&gt;method_imp;
+</span>	<span class="enscript-keyword">movel</span> sp@+,a1			|     (restore a1)
+	<span class="enscript-keyword">clrb</span> _messageLock		|     mutex_unlock (messageLock)<span class="enscript-comment">;
+Lexit3: jmp a0@				|     goto *imp;
+</span>	<span class="enscript-keyword">.space</span> 22			| /* area for moninitobjc to write */
+<span class="enscript-function-name">L15:</span>	movel sp@(self+4),a0		|     cache_miss:
+	<span class="enscript-keyword">movel</span> sp@(selector+4),sp@-	|     imp =
+	<span class="enscript-keyword">movel</span> a0@,sp@-			|     _class_lookupMethodAndLoadCache
+	<span class="enscript-keyword">CALL_EXTERN_AGAIN(__class_lookupMethodAndLoadCache)</span>	|     (class, selector)<span class="enscript-comment">;
+	addql #8,sp			|
+</span>	<span class="enscript-keyword">movel</span> d0,a0			|
+	<span class="enscript-keyword">movel</span> sp@+,a1			|     (restore a1)
+	<span class="enscript-keyword">clrb</span> _messageLock		|     mutex_unlock (messageLock)<span class="enscript-comment">;
+Lexit4:	jmp a0@				|     goto *imp;
+</span>	<span class="enscript-keyword">.space</span> 22			| /* area for moninitobjc to write */
+
+
+
+	<span class="enscript-keyword">caller</span> = 4
+
+| optimized for 68040: 31 clocks (best case) + 16 clocks / probe
+
+	<span class="enscript-keyword">.align</span> 1
+	<span class="enscript-keyword">.globl</span> _objc_msgSendSuper
+<span class="enscript-function-name">_objc_msgSendSuper:</span>
+	<span class="enscript-keyword">tstl</span> __objc_multithread_mask	| (1) if (_objc_multithread_mask == 0)
+	<span class="enscript-keyword">jne</span> L20				| (2)   goto lock<span class="enscript-comment">;
+	jra L21				|
+</span><span class="enscript-function-name">L20:</span>	movel sp@(caller),a0		| (1)
+	<span class="enscript-keyword">movel</span> a2,sp@-			| (2) (save a2)
+	<span class="enscript-keyword">movel</span> a0@+,sp@(self+4)		| (2) self = caller-&gt;receiver<span class="enscript-comment">;
+	movel a0@,a2			| (1) class = caller-&gt;class;
+</span>	<span class="enscript-keyword">movel</span> a1,sp@-			| (2) (save a1)
+	<span class="enscript-keyword">movel</span> a2@(cache),a1		| (1) cache = class-&gt;cache<span class="enscript-comment">;
+	movel sp@(selector+8),d1	| (1) index = selector;
+</span><span class="enscript-function-name">L6:</span>	andl a1@,d1			| (1) index &amp;= cache-&gt;mask<span class="enscript-comment">;
+	movel a1@(buckets,d1:l:4),d0	| (4) method = cache-&gt;buckets[index];
+</span>	<span class="enscript-keyword">movel</span> d0,a0			| (1) if (method == NULL)
+	<span class="enscript-keyword">jne</span> L7				| (2)   goto cache_miss<span class="enscript-comment">;
+	jra L9				|
+</span><span class="enscript-function-name">L7:</span>	movel sp@(selector+8),d0	| (1)
+	<span class="enscript-keyword">cmpl</span> a0@,d0			| (1) if (method_name == selector)
+	<span class="enscript-keyword">jeq</span> L8				| (2)   goto cache_hit<span class="enscript-comment">;
+	addql #1,d1			|     index++
+</span>	<span class="enscript-keyword">jra</span> L6				|     goto loop<span class="enscript-comment">;
+L8:	movel a0@(method_imp),a0	| (1) imp = method-&gt;method_imp;
+</span>	<span class="enscript-keyword">movel</span> sp@+,a1			| (1) (restore a1)
+	<span class="enscript-keyword">movel</span> sp@+,a2			| (1) (restore a2)
+<span class="enscript-function-name">Lexit5:</span>	jmp a0@				| (3) goto *imp<span class="enscript-comment">;
+	.space 22			| /* area for moninitobjc to write */
+</span><span class="enscript-function-name">L9:</span>	movel sp@(selector+8),sp@-	|     imp =
+	<span class="enscript-keyword">movel</span> a2,sp@-			|     _class_lookupMethodAndLoadCache
+	<span class="enscript-keyword">CALL_EXTERN_AGAIN(__class_lookupMethodAndLoadCache)</span>	|     (class, selector)<span class="enscript-comment">;
+	addql #8,sp			|
+</span>	<span class="enscript-keyword">movel</span> d0,a0			|
+	<span class="enscript-keyword">movel</span> sp@+,a1			|     (restore a1)
+	<span class="enscript-keyword">movel</span> sp@+,a2			|     (restore a2)
+<span class="enscript-function-name">Lexit6:</span>	jmp a0@				|     goto *imp<span class="enscript-comment">;
+	.space 22			| /* area for moninitobjc to write */
+</span>
+
+
+| locking version of objc_msgSendSuper:
+
+<span class="enscript-function-name">L21:</span>	clrb _messageLock+1		|     (workaround 040 bug)
+	<span class="enscript-keyword">tas</span> _messageLock		|     mutex_lock (messageLock)<span class="enscript-comment">;
+	jpl L27				|
+</span>	<span class="enscript-keyword">jra</span> L21				|
+<span class="enscript-function-name">L27:</span>	movel sp@(caller),a0		|    
+	<span class="enscript-keyword">movel</span> a2,sp@-			|     (save a2)
+	<span class="enscript-keyword">movel</span> a0@+,sp@(self+4)		|     self = caller-&gt;receiver<span class="enscript-comment">;
+	movel a0@,a2			|     class = caller-&gt;class;
+</span>	<span class="enscript-keyword">movel</span> a1,sp@-			|     (save a1)
+	<span class="enscript-keyword">movel</span> a2@(cache),a1		|     cache = class-&gt;cache<span class="enscript-comment">;
+	movel sp@(selector+8),d1	|     index = selector;
+</span><span class="enscript-function-name">L16:</span>	andl a1@,d1			|     index &amp;= cache-&gt;mask<span class="enscript-comment">;
+	movel a1@(buckets,d1:l:4),d0	|     method = cache-&gt;buckets[index];
+</span>	<span class="enscript-keyword">movel</span> d0,a0			|     if (method == NULL)
+	<span class="enscript-keyword">jne</span> L17				|	goto cache_miss<span class="enscript-comment">;
+	jra L19				|
+</span><span class="enscript-function-name">L17:</span>	movel sp@(selector+8),d0	|    
+	<span class="enscript-keyword">cmpl</span> a0@,d0			|     if (method_name == selector)
+	<span class="enscript-keyword">jeq</span> L18				|	goto cache_hit<span class="enscript-comment">;
+	addql #1,d1			|     index++
+</span>	<span class="enscript-keyword">jra</span> L16				|     goto loop<span class="enscript-comment">;
+L18:	movel a0@(method_imp),a0	|     imp = method-&gt;method_imp;
+</span>	<span class="enscript-keyword">movel</span> sp@+,a1			|     (restore a1)
+	<span class="enscript-keyword">movel</span> sp@+,a2			|     (restore a2)
+	<span class="enscript-keyword">clrb</span> _messageLock		|     mutex_unlock (messageLock)<span class="enscript-comment">;
+Lexit7:	jmp a0@				|     goto *imp;
+</span>	<span class="enscript-keyword">.space</span> 22			| /* area for moninitobjc to write */
+<span class="enscript-function-name">L19:</span>	movel sp@(selector+8),sp@-	|     imp =
+	<span class="enscript-keyword">movel</span> a2,sp@-			|     _class_lookupMethodAndLoadCache
+	<span class="enscript-keyword">CALL_EXTERN_AGAIN(__class_lookupMethodAndLoadCache)</span>	|     (class, selector)<span class="enscript-comment">;
+	addql #8,sp			|
+</span>	<span class="enscript-keyword">movel</span> d0,a0			|
+	<span class="enscript-keyword">movel</span> sp@+,a1			|     (restore a1)
+	<span class="enscript-keyword">movel</span> sp@+,a2			|     (restore a2)
+	<span class="enscript-keyword">clrb</span> _messageLock		|     mutex_unlock (messageLock)<span class="enscript-comment">;
+Lexit8:	jmp a0@				|     goto *imp;
+</span>	<span class="enscript-keyword">.space</span> 22			| /* area for moninitobjc to write */
+
+
+	<span class="enscript-keyword">.objc_meth_var_names
+</span>	<span class="enscript-keyword">.align</span> 1
+<span class="enscript-function-name">L30:</span>	.ascii <span class="enscript-string">&quot;forward::\0&quot;</span>
+
+	<span class="enscript-keyword">.objc_message_refs
+</span>	<span class="enscript-keyword">.align</span> 2
+<span class="enscript-function-name">L31:</span>	.long L30
+
+	<span class="enscript-keyword">.cstring
+</span>	<span class="enscript-keyword">.align</span> 1
+<span class="enscript-function-name">L32:</span>	.ascii <span class="enscript-string">&quot;Does not recognize selector %s\0&quot;</span>
+
+	<span class="enscript-keyword">.text
+</span>	<span class="enscript-keyword">.align</span> 1
+	<span class="enscript-keyword">.globl</span> __objc_msgForward
+<span class="enscript-function-name">__objc_msgForward:</span>
+	<span class="enscript-keyword">linkw</span> a6,#0x0			|  set up frame pointer
+	<span class="enscript-keyword">movel</span> sp@(selector+4),d0	|  +n accounts for sp pushes
+	<span class="enscript-keyword">cmpl</span> L31,d0			|  if (sel == @selector (forward::))
+	<span class="enscript-keyword">bne</span> L33				|  
+	<span class="enscript-keyword">pea</span> L30				|  __objc_error (self,
+	<span class="enscript-keyword">pea</span> L32				|                _errDoesntRecognize
+	<span class="enscript-keyword">movel</span> sp@(self+12),sp@-		|                <span class="enscript-string">&quot;forward::&quot;</span>)<span class="enscript-comment">;
+	BRANCH_EXTERN(___objc_error)		|  
+</span><span class="enscript-function-name">L33:</span>    pea sp@(self+4)			|  return [self forward: sel : &amp;self]<span class="enscript-comment">;
+	movel d0,sp@-			|  
+</span>	<span class="enscript-keyword">movel</span> L31,sp@-			|  
+	<span class="enscript-keyword">movel</span> sp@(self+16),sp@-		|  
+	<span class="enscript-keyword">bsr</span> _objc_msgSend		|  
+	<span class="enscript-keyword">unlk</span> a6				|  clear frame pointer
+	<span class="enscript-keyword">rts</span>				|  
+
+
+	<span class="enscript-keyword">size</span> = 12
+	<span class="enscript-keyword">args</span> = 16
+
+	<span class="enscript-keyword">.text
+</span>	<span class="enscript-keyword">.align</span> 1
+	<span class="enscript-keyword">.globl</span> _objc_msgSendv
+<span class="enscript-function-name">_objc_msgSendv:</span>
+	<span class="enscript-keyword">linkw</span> a6,#0			|  
+	<span class="enscript-keyword">movel</span> a6@(size+4),d0		|  
+	<span class="enscript-keyword">addql</span> #3,d0			|  size = round_up (size, 4)<span class="enscript-comment">;
+	andl #0xfffffffc,d0		|  
+</span>	<span class="enscript-keyword">movel</span> a6@(args+4),a0		|  
+	<span class="enscript-keyword">addl</span> d0,a0			|  arg_ptr = &amp;args[size]<span class="enscript-comment">;
+	subql #8,d0			|  size -= 8;
+</span>	<span class="enscript-keyword">ble</span> L35				|  while (size &gt; 0)
+<span class="enscript-function-name">L34:</span>	movel a0@-,sp@-			|    *--sp = *--arg_ptr<span class="enscript-comment">;
+	subql #4,d0			|    size -= 4;
+</span>	<span class="enscript-keyword">bgt</span> L34				|  
+<span class="enscript-function-name">L35:</span>	movel a6@(selector+4),sp@-	|  
+	<span class="enscript-keyword">movel</span> a6@(self+4),sp@-		|  objc_msgSend (self, selector, ...)<span class="enscript-comment">;
+	bsr _objc_msgSend		|  
+</span>	<span class="enscript-keyword">unlk</span> a6				|  (deallocate variable storage)
+	<span class="enscript-keyword">rts</span>				|  
+</pre>
+<hr />
+</body></html>

@@ -1,0 +1,1093 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>objc-msg-i386.s</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">objc-msg-i386.s&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="objc-msg-i386.s">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+/*
+ <span class="enscript-keyword">*</span> Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_START@
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> Portions Copyright (c) 1999 Apple Computer, Inc.  All Rights
+ <span class="enscript-keyword">*</span> Reserved.  This file contains Original Code and/or Modifications of
+ <span class="enscript-keyword">*</span> Original Code as defined in and that are subject to the Apple Public
+ <span class="enscript-keyword">*</span> Source License Version 1.1 (the <span class="enscript-string">&quot;License&quot;</span>).  You may not use this file
+ <span class="enscript-keyword">*</span> except in compliance with the License.  Please obtain a copy of the
+ <span class="enscript-keyword">*</span> License at <a href="http://www.apple.com/publicsource">http://www.apple.com/publicsource</a> and read it before using
+ <span class="enscript-keyword">*</span> this file.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> The Original Code and all software distributed under the License are
+ <span class="enscript-keyword">*</span> distributed on an <span class="enscript-string">&quot;AS IS&quot;</span> basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ <span class="enscript-keyword">*</span> EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ <span class="enscript-keyword">*</span> INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ <span class="enscript-keyword">*</span> FITNESS FOR A PARTICULAR PURPOSE OR NON- INFRINGEMENT.  Please see the
+ <span class="enscript-keyword">*</span> License for the specific language governing rights and limitations
+ <span class="enscript-keyword">*</span> under the License.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_END@
+ <span class="enscript-keyword">*/
+</span>/********************************************************************
+ <span class="enscript-keyword">********************************************************************
+</span> <span class="enscript-keyword">**
+</span> <span class="enscript-keyword">**</span>  objc-msg-i386.s - i386 code to support objc messaging.
+ <span class="enscript-keyword">**
+</span> <span class="enscript-keyword">********************************************************************
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+// The assembler syntax for an immediate value is the same as the
+// syntax for a macro argument number (dollar sign followed by the
+// digits).  Argument number wins in this ambiguity.  Until the
+// assembler is fixed we have to find another way.
+#define NO_MACRO_CONSTS
+#ifdef NO_MACRO_CONSTS
+	<span class="enscript-keyword">kTwo</span>			= 2
+	<span class="enscript-keyword">kEight</span>			= 8
+#endif
+
+#if defined(OBJC_COLLECTING_CACHE)
+// _objc_entryPoints and _objc_exitPoints are used by objc
+// to get the critical regions for which method caches 
+// cannot be garbage collected.
+
+	<span class="enscript-keyword">.data
+</span>.globl		_objc_entryPoints
+<span class="enscript-function-name">_objc_entryPoints:</span>
+	<span class="enscript-keyword">.long</span>	_objc_msgSend
+	<span class="enscript-keyword">.long</span>	_objc_msgSend_stret
+	<span class="enscript-keyword">.long</span>	_objc_msgSendSuper
+	<span class="enscript-keyword">.long</span>	_objc_msgSendSuper_stret
+	<span class="enscript-keyword">.long</span>	0
+
+.globl		_objc_exitPoints
+<span class="enscript-function-name">_objc_exitPoints:</span>
+	<span class="enscript-keyword">.long</span>	LMsgSendExit
+	<span class="enscript-keyword">.long</span>	LMsgSendStretExit
+	<span class="enscript-keyword">.long</span>	LMsgSendSuperExit
+	<span class="enscript-keyword">.long</span>	LMsgSendSuperStretExit
+	<span class="enscript-keyword">.long</span>	0
+#endif
+
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> Constants.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+// In case the implementation is _objc_msgForward, indicate to it
+// whether the method was invoked as a word-return or struct-return.
+// This flag is passed in a register that is caller-saved, and is
+// not part of the parameter passing convention (i.e. it is <span class="enscript-string">&quot;out of
+// band&quot;</span>).  This works because _objc_msgForward is only entered
+// from here in the messenger.
+	<span class="enscript-keyword">kFwdMsgSend</span>		= 0
+	<span class="enscript-keyword">kFwdMsgSendStret</span>		= 1
+
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> Common offsets.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">self</span>			= 4
+	<span class="enscript-keyword">super</span>			= 4
+	<span class="enscript-keyword">selector</span>		= 8
+	<span class="enscript-keyword">marg_size</span>		= 12
+	<span class="enscript-keyword">marg_list</span>		= 16
+
+	<span class="enscript-keyword">struct_addr</span>		= 4
+
+	<span class="enscript-keyword">self_stret</span>		= 8
+	<span class="enscript-keyword">super_stret</span>		= 8
+	<span class="enscript-keyword">selector_stret</span>		= 12
+	<span class="enscript-keyword">marg_size_stret</span>		= 16
+	<span class="enscript-keyword">marg_list_stret</span>		= 20
+
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> Structure definitions.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+// objc_super parameter to sendSuper
+	<span class="enscript-keyword">receiver</span>		= 0
+	<span class="enscript-keyword">class</span>			= 4
+
+// Selected field offsets in class structure
+	<span class="enscript-keyword">isa</span>			= 0
+	<span class="enscript-keyword">cache</span>			= 32
+
+// Method descriptor
+	<span class="enscript-keyword">method_name</span>		= 0
+	<span class="enscript-keyword">method_imp</span>		= 8
+
+// Cache header
+	<span class="enscript-keyword">mask</span>			= 0
+	<span class="enscript-keyword">occupied</span>		= 4
+	<span class="enscript-keyword">buckets</span>			= 8		// variable length array
+
+#if defined(OBJC_INSTRUMENTED)
+// Cache instrumentation data, follows buckets
+	<span class="enscript-keyword">hitCount</span>		= 0
+	<span class="enscript-keyword">hitProbes</span>		= hitCount + 4
+	<span class="enscript-keyword">maxHitProbes</span>		= hitProbes + 4
+	<span class="enscript-keyword">missCount</span>		= maxHitProbes + 4
+	<span class="enscript-keyword">missProbes</span>		= missCount + 4
+	<span class="enscript-keyword">maxMissProbes</span>		= missProbes + 4
+	<span class="enscript-keyword">flushCount</span>		= maxMissProbes + 4
+	<span class="enscript-keyword">flushedEntries</span>		= flushCount + 4
+
+// Buckets in CacheHitHistogram and CacheMissHistogram
+	<span class="enscript-keyword">CACHE_HISTOGRAM_SIZE</span>	= 512
+#endif
+
+
+//////////////////////////////////////////////////////////////////////
+//
+// LOAD_STATIC_WORD	targetReg, symbolName, LOCAL_SYMBOL | EXTERNAL_SYMBOL
+//
+// Load the value of the named static data word.
+//
+// Takes: targetReg			- the register, other than r0, to load
+//	 	  symbolName		- the name of the symbol
+//	 	  LOCAL_SYMBOL		- symbol name used as-is
+//		  EXTERNAL_SYMBOL	- symbol name gets nonlazy treatment
+//
+// Eats: edx and targetReg
+//////////////////////////////////////////////////////////////////////
+
+// Values to specify whether the symbol is plain or nonlazy
+LOCAL_SYMBOL	= 0
+EXTERNAL_SYMBOL	= 1
+
+.macro	LOAD_STATIC_WORD
+
+#if defined(__DYNAMIC__)
+	<span class="enscript-keyword">call</span>	1f
+<span class="enscript-function-name">1:</span>	popl	%edx
+.if $2 == EXTERNAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	L$1-1b(%edx),$0
+	<span class="enscript-keyword">movl</span>	0($0),$0
+.elseif $2 == LOCAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	$1-1b(%edx),$0
+.else
+	<span class="enscript-keyword">!!!</span> Unknown symbol type !!!
+.endif
+#else
+	<span class="enscript-keyword">movl</span>	$1,$0
+#endif
+
+.endmacro
+
+//////////////////////////////////////////////////////////////////////
+//
+// LEA_STATIC_DATA	targetReg, symbolName, LOCAL_SYMBOL | EXTERNAL_SYMBOL
+//
+// Load the address of the named static data.
+//
+// Takes: targetReg		- the register, other than edx, to load
+//	 symbolName		- the name of the symbol
+//	 LOCAL_SYMBOL		- symbol is local to this module
+//	 EXTERNAL_SYMBOL	- symbol is imported from another module
+//
+// Eats: edx and targetReg
+//////////////////////////////////////////////////////////////////////
+
+.macro	LEA_STATIC_DATA
+#if defined(__DYNAMIC__)
+	<span class="enscript-keyword">call</span>	1f
+<span class="enscript-function-name">1:</span>	popl	%edx
+.if $2 == EXTERNAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	L$1-1b(%edx),$0
+.elseif $2 == LOCAL_SYMBOL
+	<span class="enscript-keyword">leal</span>	$1-1b(%edx),$0
+.else
+	<span class="enscript-keyword">!!!</span> Unknown symbol type !!!
+.endif
+#else
+	<span class="enscript-keyword">leal</span>	$1,$0
+#endif
+
+.endmacro
+
+//////////////////////////////////////////////////////////////////////
+//
+// ENTRY		functionName
+//
+// Assembly directives to begin an exported function.
+//
+// Takes: functionName - name of the exported function
+//////////////////////////////////////////////////////////////////////
+
+.macro ENTRY
+	<span class="enscript-keyword">.text
+</span>	<span class="enscript-keyword">.globl</span>	$0
+	<span class="enscript-keyword">.align</span>	4, 0x90
+<span class="enscript-function-name">$0:</span>
+.endmacro
+
+//////////////////////////////////////////////////////////////////////
+//
+// END_ENTRY	functionName
+//
+// Assembly directives to end an exported function.  Just a placeholder,
+// a close-parenthesis for ENTRY, until it is needed for something.
+//
+// Takes: functionName - name of the exported function
+//////////////////////////////////////////////////////////////////////
+
+.macro END_ENTRY
+.endmacro
+
+//////////////////////////////////////////////////////////////////////
+//
+// CALL_MCOUNTER	counterName
+//
+// Allocate and maintain a counter for the call site.
+//
+// Takes: counterName - name of counter.
+//////////////////////////////////////////////////////////////////////
+HAVE_CALL_EXTERN_mcount	= 0
+
+.macro CALL_MCOUNTER
+#ifdef PROFILE
+	<span class="enscript-keyword">pushl</span>	%ebp
+	<span class="enscript-keyword">movl</span>	%esp,%ebp
+	<span class="enscript-keyword">LOAD_STATIC_WORD</span> %eax, $0, LOCAL_SYMBOL
+.if HAVE_CALL_EXTERN_mcount == 0
+HAVE_CALL_EXTERN_mcount = 1
+	<span class="enscript-keyword">CALL_EXTERN(mcount)
+</span>.else
+	<span class="enscript-keyword">CALL_EXTERN_AGAIN(mcount)
+</span>.endif
+	<span class="enscript-keyword">.data
+</span>	<span class="enscript-keyword">.align</span>	2
+<span class="enscript-function-name">$0:</span>
+	<span class="enscript-keyword">.long</span>	0
+	<span class="enscript-keyword">.text
+</span>	<span class="enscript-keyword">movl</span>	%ebp,%esp
+	<span class="enscript-keyword">popl</span>	%ebp
+#endif
+.endmacro
+
+
+/////////////////////////////////////////////////////////////////////
+//
+//
+// CacheLookup	WORD_RETURN | STRUCT_RETURN, MSG_SEND | MSG_SENDSUPER, cacheMissLabel
+//
+// Locate the implementation for a selector in a class method cache.
+//
+// Takes: WORD_RETURN	(first parameter is at sp+4)
+//	  STRUCT_RETURN	(struct address is at sp+4, first parameter at sp+8)
+//        MSG_SEND	(first parameter is receiver)
+//	  MSG_SENDSUPER	(first parameter is address of objc_super structure)
+//
+//	  cacheMissLabel = label to branch to iff method is not cached
+//
+// On exit:	(found) imp in eax register
+//		(not found) jumps to cacheMissLabel
+//	
+/////////////////////////////////////////////////////////////////////
+
+
+// Values to specify to method lookup macros whether the return type of
+// the method is word or structure.
+WORD_RETURN	= 0
+STRUCT_RETURN	= 1
+
+// Values to specify to method lookup macros whether the first argument
+// is an object/class reference or a 'objc_super' structure.
+MSG_SEND	= 0
+MSG_SENDSUPER	= 1
+
+.macro	CacheLookup
+
+// load variables and save caller registers.
+// Overlapped to prevent AGI
+.if $0 == WORD_RETURN			// Regular word return
+.if $1 == MSG_SEND			// MSG_SEND
+	<span class="enscript-keyword">movl</span>	isa(%eax), %eax		//   class = self-&gt;isa
+	<span class="enscript-keyword">movl</span>	selector(%esp), %ecx	//   get selector
+.else					// MSG_SENDSUPER
+	<span class="enscript-keyword">movl</span>	super(%esp), %eax	//   get objc_super address
+	<span class="enscript-keyword">movl</span>	class(%eax), %eax	//   class = caller-&gt;class
+	<span class="enscript-keyword">movl</span>	selector(%esp), %ecx	//   get selector
+.endif
+.else					// Struct return
+.if $1 == MSG_SEND			// MSG_SEND (stret)
+	<span class="enscript-keyword">movl</span>	isa(%eax), %eax		//   class = self-&gt;isa
+	<span class="enscript-keyword">movl</span>	(selector_stret)(%esp), %ecx	//   get selector
+.else					// MSG_SENDSUPER (stret)
+	<span class="enscript-keyword">movl</span>	super_stret(%esp), %eax	//   get objc_super address
+	<span class="enscript-keyword">movl</span>	class(%eax), %eax	//   class = caller-&gt;class
+	<span class="enscript-keyword">movl</span>	(selector_stret)(%esp), %ecx	//   get selector
+.endif
+.endif
+
+	<span class="enscript-keyword">pushl</span>	%edi			// save scratch register
+	<span class="enscript-keyword">movl</span>	cache(%eax), %eax	// cache = class-&gt;cache
+	<span class="enscript-keyword">pushl</span>	%esi			// save scratch register
+
+#if defined(OBJC_INSTRUMENTED)
+	<span class="enscript-keyword">pushl</span>	%ebx			// save non-volatile register
+	<span class="enscript-keyword">pushl</span>	%eax			// save cache pointer
+	<span class="enscript-keyword">xorl</span>	%ebx, %ebx		// probeCount = 0
+#endif
+	<span class="enscript-keyword">leal</span>	buckets(%eax), %edi	// buckets = &amp;cache-&gt;buckets
+	<span class="enscript-keyword">movl</span>	mask(%eax), %esi		// mask = cache-&gt;mask
+	<span class="enscript-keyword">movl</span>	%ecx, %edx		// index = selector
+
+// search the receiver's cache
+<span class="enscript-function-name">LMsgSendProbeCache_$0_$1:</span>
+#if defined(OBJC_INSTRUMENTED)
+	<span class="enscript-keyword">inc</span>	%ebx			// probeCount += 1
+#endif
+	<span class="enscript-keyword">andl</span>	%esi, %edx		// index &amp;= mask
+	<span class="enscript-keyword">movl</span>	(%edi, %edx, 4), %eax	// method = buckets[index]
+
+	<span class="enscript-keyword">testl</span>	%eax, %eax		// check for end of bucket
+	<span class="enscript-keyword">je</span>	LMsgSendCacheMiss_$0_$1	// go to cache miss code
+	<span class="enscript-keyword">cmpl</span>	method_name(%eax), %ecx	// check for method name match
+	<span class="enscript-keyword">je</span>	LMsgSendCacheHit_$0_$1	// go handle cache hit
+	<span class="enscript-keyword">inc</span>	%edx			// bump index ...
+	<span class="enscript-keyword">jmp</span>	LMsgSendProbeCache_$0_$1// ... and loop
+
+// not found in cache: restore state and go to callers handler
+<span class="enscript-function-name">LMsgSendCacheMiss_$0_$1:</span>
+#if defined(OBJC_INSTRUMENTED)
+	<span class="enscript-keyword">popl</span>	%edx			// retrieve cache pointer
+	<span class="enscript-keyword">movl</span>	mask(%edx), %esi		// mask = cache-&gt;mask
+	<span class="enscript-keyword">testl</span>	%esi, %esi		// a mask of zero is only for the...
+	<span class="enscript-keyword">je</span>	LMsgSendMissInstrumentDone_$0	// ... emptyCache, do not record anything
+
+	<span class="enscript-keyword">//</span> locate and update the CacheInstrumentation structure
+	<span class="enscript-keyword">inc</span>	%esi			// entryCount = mask + 1
+#ifdef NO_MACRO_CONSTS
+	<span class="enscript-keyword">shll</span>	$kTwo, %esi		// tableSize = entryCount * sizeof(entry)
+#else
+	<span class="enscript-keyword">shll</span>	$2, %esi			// tableSize = entryCount * sizeof(entry)
+#endif
+	<span class="enscript-keyword">addl</span>	$buckets, %esi		// offset = buckets + tableSize
+	<span class="enscript-keyword">addl</span>	%edx, %esi		// cacheData = &amp;cache-&gt;buckets[mask+1]
+
+	<span class="enscript-keyword">movl</span>	missCount(%esi), %edi	// 
+	<span class="enscript-keyword">inc</span>	%edi			// 
+	<span class="enscript-keyword">movl</span>	%edi, missCount(%esi)	// cacheData-&gt;missCount += 1
+	<span class="enscript-keyword">movl</span>	missProbes(%esi), %edi	// 
+	<span class="enscript-keyword">addl</span>	%ebx, %edi		// 
+	<span class="enscript-keyword">movl</span>	%edi, missProbes(%esi)	// cacheData-&gt;missProbes += probeCount
+	<span class="enscript-keyword">movl</span>	maxMissProbes(%esi), %edi// if (cacheData-&gt;maxMissProbes &lt; probeCount)
+	<span class="enscript-keyword">cmpl</span>	%ebx, %edi		// 
+	<span class="enscript-keyword">jge</span>	LMsgSendMaxMissProbeOK_$0	// 
+	<span class="enscript-keyword">movl</span>	%ebx, maxMissProbes(%esi)// cacheData-&gt;maxMissProbes = probeCount
+<span class="enscript-function-name">LMsgSendMaxMissProbeOK_$0:</span>
+
+	<span class="enscript-keyword">//</span> update cache miss probe histogram
+	<span class="enscript-keyword">cmpl</span>	$CACHE_HISTOGRAM_SIZE, %ebx	// pin probeCount to max index
+	<span class="enscript-keyword">jl</span>	LMsgSendMissHistoIndexSet_$0
+	<span class="enscript-keyword">movl</span>	$(CACHE_HISTOGRAM_SIZE-1), %ebx
+<span class="enscript-function-name">LMsgSendMissHistoIndexSet_$0:</span>
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%esi, _CacheMissHistogram, EXTERNAL_SYMBOL
+#ifdef NO_MACRO_CONSTS
+	<span class="enscript-keyword">shll</span>	$kTwo, %ebx		// convert probeCount to histogram index
+#else
+	<span class="enscript-keyword">shll</span>	$2, %ebx			// convert probeCount to histogram index
+#endif
+	<span class="enscript-keyword">addl</span>	%ebx, %esi		// calculate &amp;CacheMissHistogram[probeCount&lt;&lt;2]
+	<span class="enscript-keyword">movl</span>	0(%esi), %edi		// get current tally
+	<span class="enscript-keyword">inc</span>	%edi			// 
+	<span class="enscript-keyword">movl</span>	%edi, 0(%esi)		// tally += 1
+<span class="enscript-function-name">LMsgSendMissInstrumentDone_$0:</span>
+	<span class="enscript-keyword">popl</span>	%ebx			// restore non-volatile register
+#endif
+
+.if $0 == WORD_RETURN			// Regular word return
+.if $1 == MSG_SEND			// MSG_SEND
+	<span class="enscript-keyword">popl</span>	%esi			//  restore callers register
+	<span class="enscript-keyword">popl</span>	%edi			//  restore callers register
+	<span class="enscript-keyword">movl</span>	self(%esp), %eax		//  get messaged object
+	<span class="enscript-keyword">movl</span>	isa(%eax), %eax		//  get objects class
+.else					// MSG_SENDSUPER
+	<span class="enscript-keyword">//</span> replace <span class="enscript-string">&quot;super&quot;</span> arg with <span class="enscript-string">&quot;receiver&quot;</span>
+	<span class="enscript-keyword">movl</span>	super+8(%esp), %edi	//  get super structure
+	<span class="enscript-keyword">movl</span>	receiver(%edi), %esi	//  get messaged object
+	<span class="enscript-keyword">movl</span>	%esi, super+8(%esp)	//  make it the first argument
+	<span class="enscript-keyword">movl</span>	class(%edi), %eax	//  get messaged class
+	<span class="enscript-keyword">popl</span>	%esi			//  restore callers register
+	<span class="enscript-keyword">popl</span>	%edi			//  restore callers register
+.endif
+.else					// Struct return
+.if $1 == MSG_SEND			// MSG_SEND (stret)
+	<span class="enscript-keyword">popl</span>	%esi			//  restore callers register
+	<span class="enscript-keyword">popl</span>	%edi			//  restore callers register
+	<span class="enscript-keyword">movl</span>	self_stret(%esp), %eax	//  get messaged object
+	<span class="enscript-keyword">movl</span>	isa(%eax), %eax		//  get objects class
+.else					// MSG_SENDSUPER (stret)
+	<span class="enscript-keyword">//</span> replace <span class="enscript-string">&quot;super&quot;</span> arg with <span class="enscript-string">&quot;receiver&quot;</span>
+	<span class="enscript-keyword">movl</span>	super_stret+8(%esp), %edi//  get super structure
+	<span class="enscript-keyword">movl</span>	receiver(%edi), %esi	//  get messaged object
+	<span class="enscript-keyword">movl</span>	%esi, super_stret+8(%esp)//  make it the first argument
+	<span class="enscript-keyword">movl</span>	class(%edi), %eax	//  get messaged class
+	<span class="enscript-keyword">popl</span>	%esi			//  restore callers register
+	<span class="enscript-keyword">popl</span>	%edi			//  restore callers register
+.endif
+.endif
+
+	<span class="enscript-keyword">jmp</span>	$2			// go to callers handler
+
+// eax points to matching cache entry
+	<span class="enscript-keyword">.align</span>	4, 0x90
+<span class="enscript-function-name">LMsgSendCacheHit_$0_$1:</span>
+#if defined(OBJC_INSTRUMENTED)
+	<span class="enscript-keyword">popl</span>	%edx			// retrieve cache pointer
+	<span class="enscript-keyword">movl</span>	mask(%edx), %esi		// mask = cache-&gt;mask
+	<span class="enscript-keyword">testl</span>	%esi, %esi		// a mask of zero is only for the...
+	<span class="enscript-keyword">je</span>	LMsgSendHitInstrumentDone_$0_$1	// ... emptyCache, do not record anything
+
+	<span class="enscript-keyword">//</span> locate and update the CacheInstrumentation structure
+	<span class="enscript-keyword">inc</span>	%esi			// entryCount = mask + 1
+#ifdef NO_MACRO_CONSTS
+	<span class="enscript-keyword">shll</span>	$kTwo, %esi		// tableSize = entryCount * sizeof(entry)
+#else
+	<span class="enscript-keyword">shll</span>	$2, %esi			// tableSize = entryCount * sizeof(entry)
+#endif
+	<span class="enscript-keyword">addl</span>	$buckets, %esi		// offset = buckets + tableSize
+	<span class="enscript-keyword">addl</span>	%edx, %esi		// cacheData = &amp;cache-&gt;buckets[mask+1]
+
+	<span class="enscript-keyword">movl</span>	hitCount(%esi), %edi
+	<span class="enscript-keyword">inc</span>	%edi
+	<span class="enscript-keyword">movl</span>	%edi, hitCount(%esi)	// cacheData-&gt;hitCount += 1
+	<span class="enscript-keyword">movl</span>	hitProbes(%esi), %edi
+	<span class="enscript-keyword">addl</span>	%ebx, %edi
+	<span class="enscript-keyword">movl</span>	%edi, hitProbes(%esi)	// cacheData-&gt;hitProbes += probeCount
+	<span class="enscript-keyword">movl</span>	maxHitProbes(%esi), %edi// if (cacheData-&gt;maxHitProbes &lt; probeCount)
+	<span class="enscript-keyword">cmpl</span>	%ebx, %edi
+	<span class="enscript-keyword">jge</span>	LMsgSendMaxHitProbeOK_$0_$1
+	<span class="enscript-keyword">movl</span>	%ebx, maxHitProbes(%esi)// cacheData-&gt;maxHitProbes = probeCount
+<span class="enscript-function-name">LMsgSendMaxHitProbeOK_$0_$1:</span>
+
+	<span class="enscript-keyword">//</span> update cache hit probe histogram
+	<span class="enscript-keyword">cmpl</span>	$CACHE_HISTOGRAM_SIZE, %ebx	// pin probeCount to max index
+	<span class="enscript-keyword">jl</span>	LMsgSendHitHistoIndexSet_$0_$1
+	<span class="enscript-keyword">movl</span>	$(CACHE_HISTOGRAM_SIZE-1), %ebx
+<span class="enscript-function-name">LMsgSendHitHistoIndexSet_$0_$1:</span>
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%esi, _CacheHitHistogram, EXTERNAL_SYMBOL
+#ifdef NO_MACRO_CONSTS
+	<span class="enscript-keyword">shll</span>	$kTwo, %ebx		// convert probeCount to histogram index
+#else
+	<span class="enscript-keyword">shll</span>	$2, %ebx			// convert probeCount to histogram index
+#endif
+	<span class="enscript-keyword">addl</span>	%ebx, %esi		// calculate &amp;CacheHitHistogram[probeCount&lt;&lt;2]
+	<span class="enscript-keyword">movl</span>	0(%esi), %edi		// get current tally
+	<span class="enscript-keyword">inc</span>	%edi			// 
+	<span class="enscript-keyword">movl</span>	%edi, 0(%esi)		// tally += 1
+<span class="enscript-function-name">LMsgSendHitInstrumentDone_$0_$1:</span>
+	<span class="enscript-keyword">popl</span>	%ebx			// restore non-volatile register
+#endif
+
+// load implementation address, restore state, and we're done
+	<span class="enscript-keyword">movl</span>	method_imp(%eax), %eax	// imp = method-&gt;method_imp
+
+.if $0 == WORD_RETURN			// Regular word return
+.if $1 == MSG_SENDSUPER			// MSG_SENDSUPER
+	<span class="enscript-keyword">//</span> replace <span class="enscript-string">&quot;super&quot;</span> arg with <span class="enscript-string">&quot;self&quot;</span>
+	<span class="enscript-keyword">movl</span>	super+8(%esp), %edi
+	<span class="enscript-keyword">movl</span>	receiver(%edi), %esi
+	<span class="enscript-keyword">movl</span>	%esi, super+8(%esp)
+.endif
+.else					// Struct return
+.if $1 == MSG_SENDSUPER			// MSG_SENDSUPER (stret)
+	<span class="enscript-keyword">//</span> replace <span class="enscript-string">&quot;super&quot;</span> arg with <span class="enscript-string">&quot;self&quot;</span>
+	<span class="enscript-keyword">movl</span>	super_stret+8(%esp), %edi
+	<span class="enscript-keyword">movl</span>	receiver(%edi), %esi
+	<span class="enscript-keyword">movl</span>	%esi, super_stret+8(%esp)
+.endif
+.endif
+
+	<span class="enscript-keyword">//</span> restore caller registers
+	<span class="enscript-keyword">popl</span>	%esi
+	<span class="enscript-keyword">popl</span>	%edi
+.endmacro
+
+
+/////////////////////////////////////////////////////////////////////
+//
+// MethodTableLookup WORD_RETURN | STRUCT_RETURN, MSG_SEND | MSG_SENDSUPER
+//
+// Takes: WORD_RETURN	(first parameter is at sp+4)
+//	  STRUCT_RETURN	(struct address is at sp+4, first parameter at sp+8)
+// 	  MSG_SEND	(first parameter is receiver)
+//	  MSG_SENDSUPER	(first parameter is address of objc_super structure)
+//
+// On exit: Register parameters restored from CacheLookup
+//	  imp in eax
+//
+/////////////////////////////////////////////////////////////////////
+
+HAVE_CALL_EXTERN_lookupMethodAndLoadCache = 0
+
+.macro MethodTableLookup
+
+	<span class="enscript-keyword">//</span> push args (class, selector)
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">pushl</span>	%eax
+.if HAVE_CALL_EXTERN_lookupMethodAndLoadCache == 0
+HAVE_CALL_EXTERN_lookupMethodAndLoadCache = 1
+	<span class="enscript-keyword">CALL_EXTERN(__class_lookupMethodAndLoadCache)
+</span>.else
+	<span class="enscript-keyword">CALL_EXTERN_AGAIN(__class_lookupMethodAndLoadCache)
+</span>.endif
+#ifdef NO_MACRO_CONSTS
+	<span class="enscript-keyword">addl</span>	$kEight, %esp				// pop parameters
+#else
+	<span class="enscript-keyword">addl</span>	$8, %esp					// pop parameters
+#endif
+.endmacro
+
+/**************************
+ <span class="enscript-keyword">*</span> This #defines is missing from asm_help.h
+ <span class="enscript-keyword">***************************/
+</span>#define EXTERN_TO_REG_AGAIN(var, reg)			  \
+	<span class="enscript-keyword">call</span>	1f					<span class="enscript-comment">; \
+1:							; \
+</span>	<span class="enscript-keyword">popl</span>	%edx					<span class="enscript-comment">; \
+	movl	L ## var ##$non_lazy_ptr-1b(%edx),reg	; 
+</span>
+#define BRANCH_EXTERN_AGAIN(func)	\
+	<span class="enscript-keyword">PICIFY(func)</span>		      <span class="enscript-comment">; \
+	jmp	%edx		      ; 
+</span>
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> id objc_msgSend(id self, SEL	_cmd,...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">ENTRY</span>	_objc_msgSend
+	<span class="enscript-keyword">CALL_MCOUNTER</span>	LP0
+
+	<span class="enscript-keyword">movl</span>	self(%esp), %eax
+
+// check whether receiver is nil 
+	<span class="enscript-keyword">testl</span>	%eax, %eax
+	<span class="enscript-keyword">je</span>	LMsgSendNilSelf
+
+#if !defined(OBJC_COLLECTING_CACHE)
+// check whether context is multithreaded
+	<span class="enscript-keyword">EXTERN_TO_REG(__objc_multithread_mask,%ecx)
+</span>	<span class="enscript-keyword">testl</span>	%ecx, %ecx
+	<span class="enscript-keyword">je</span>	LMsgSendMT
+#endif
+
+// single threaded and receiver is non-nil: search the cache
+	<span class="enscript-keyword">CacheLookup</span> WORD_RETURN, MSG_SEND, LMsgSendCacheMiss
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSend, %edx	// flag word-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+// cache miss: go search the method lists
+<span class="enscript-function-name">LMsgSendCacheMiss:</span>
+	<span class="enscript-keyword">MethodTableLookup</span> WORD_RETURN, MSG_SEND
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSend, %edx	// flag word-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+#if !defined(OBJC_COLLECTING_CACHE)
+// multithreaded: hold _messageLock while accessing cache
+<span class="enscript-function-name">LMsgSendMT:</span>
+	<span class="enscript-keyword">movl</span>	$1, %ecx			// acquire _messageLock
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%eax, _messageLock, EXTERNAL_SYMBOL
+<span class="enscript-function-name">LMsgSendLockSpin:</span>
+	<span class="enscript-keyword">xchgl</span>	%ecx, (%eax)
+	<span class="enscript-keyword">cmpl</span>	$0, %ecx
+	<span class="enscript-keyword">jne</span>	LMsgSendLockSpin
+	<span class="enscript-keyword">movl</span>	self(%esp), %eax		// restore eax
+
+	<span class="enscript-keyword">CacheLookup</span> WORD_RETURN, MSG_SEND, LMsgSendMTCacheMiss
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%ecx, _messageLock, EXTERNAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	$0, (%ecx)		// unlock
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSend, %edx	// flag word-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+// cache miss: go search the method lists
+<span class="enscript-function-name">LMsgSendMTCacheMiss:</span>
+	<span class="enscript-keyword">MethodTableLookup</span> WORD_RETURN, MSG_SEND
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%ecx, _messageLock, EXTERNAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	$0, (%ecx)		// unlock
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSend, %edx	// flag word-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+#endif
+
+// message sent to nil object: call optional handler and return nil
+<span class="enscript-function-name">LMsgSendNilSelf:</span>
+	<span class="enscript-keyword">EXTERN_TO_REG(__objc_msgNil,%eax)
+</span>	<span class="enscript-keyword">movl</span>	0(%eax), %eax		// load nil message handler
+	<span class="enscript-keyword">testl</span>	%eax, %eax
+	<span class="enscript-keyword">je</span>	LMsgSendDone		// if NULL just return and don't do anything
+	<span class="enscript-keyword">call</span>	*%eax			// call __objc_msgNil
+	<span class="enscript-keyword">xorl</span>	%eax, %eax		// Rezero $eax just in case
+<span class="enscript-function-name">LMsgSendDone:</span>
+	<span class="enscript-keyword">ret
+</span>
+<span class="enscript-function-name">LMsgSendExit:</span>
+	<span class="enscript-keyword">END_ENTRY</span>	_objc_msgSend
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> id objc_msgSendSuper(struct objc_super *super, SEL _cmd,...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> struct objc_super {
+ <span class="enscript-keyword">*</span>		id	receiver<span class="enscript-comment">;
+ *		Class	class;
+</span> <span class="enscript-keyword">*</span> }<span class="enscript-comment">;
+ ********************************************************************/
+</span>
+	<span class="enscript-keyword">ENTRY</span>	_objc_msgSendSuper
+	<span class="enscript-keyword">CALL_MCOUNTER</span> LP1
+
+	<span class="enscript-keyword">movl</span>	super(%esp), %eax
+
+#if !defined(OBJC_COLLECTING_CACHE)
+// check whether context is multithreaded
+	<span class="enscript-keyword">EXTERN_TO_REG_AGAIN(__objc_multithread_mask,%ecx)
+</span>	<span class="enscript-keyword">testl</span>	%ecx, %ecx
+	<span class="enscript-keyword">je</span>	LMsgSendSuperMT
+#endif
+
+// single threaded and receiver is non-nil: search the cache
+	<span class="enscript-keyword">CacheLookup</span> WORD_RETURN, MSG_SENDSUPER, LMsgSendSuperCacheMiss
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSend, %edx	// flag word-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+// cache miss: go search the method lists
+<span class="enscript-function-name">LMsgSendSuperCacheMiss:</span>
+	<span class="enscript-keyword">MethodTableLookup</span> WORD_RETURN, MSG_SENDSUPER
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSend, %edx	// flag word-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+#if !defined(OBJC_COLLECTING_CACHE)
+<span class="enscript-function-name">LMsgSendSuperMT:</span>
+// multithreaded: hold _messageLock while accessing cache
+	<span class="enscript-keyword">movl</span>	$1, %ecx			// acquire _messageLock
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%eax, _messageLock, EXTERNAL_SYMBOL
+<span class="enscript-function-name">LMsgSendSuperLockSpin:</span>
+	<span class="enscript-keyword">xchgl</span>	%ecx, (%eax)
+	<span class="enscript-keyword">cmpl</span>	$0, %ecx
+	<span class="enscript-keyword">jne</span>	LMsgSendSuperLockSpin
+	<span class="enscript-keyword">movl</span>	super(%esp), %eax	// restore eax
+
+	<span class="enscript-keyword">CacheLookup</span> WORD_RETURN, MSG_SENDSUPER, LMsgSendSuperMTCacheMiss
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%ecx, _messageLock, EXTERNAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	$0, (%ecx)		// unlock
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSend, %edx	// flag word-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+// cache miss: go search the method lists
+<span class="enscript-function-name">LMsgSendSuperMTCacheMiss:</span>
+	<span class="enscript-keyword">MethodTableLookup</span> WORD_RETURN, MSG_SENDSUPER
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%ecx, _messageLock, EXTERNAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	$0, (%ecx)		// unlock
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSend, %edx	// flag word-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+#endif
+
+<span class="enscript-function-name">LMsgSendSuperExit:</span>
+	<span class="enscript-keyword">END_ENTRY</span>	_objc_msgSendSuper
+
+/********************************************************************
+ <span class="enscript-keyword">*</span> id objc_msgSendv(id self, SEL _cmd, unsigned size, marg_list frame)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> On entry:
+ <span class="enscript-keyword">*</span>		(sp+4)  is the message receiver,
+ <span class="enscript-keyword">*</span>		(sp+8)	is the selector,
+ <span class="enscript-keyword">*</span>		(sp+12) is the size of the marg_list, in bytes,
+ <span class="enscript-keyword">*</span>		(sp+16) is the address of the marg_list
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">ENTRY</span>	_objc_msgSendv
+
+#if defined(KERNEL)
+	<span class="enscript-keyword">trap</span>				// _objc_msgSendv is not for the kernel
+#else
+	<span class="enscript-keyword">pushl</span>	%ebp
+	<span class="enscript-keyword">movl</span>	%esp, %ebp
+	<span class="enscript-keyword">movl</span>	(marg_list+4)(%ebp), %edx
+	<span class="enscript-keyword">addl</span>	$8, %edx			// skip self &amp; selector
+	<span class="enscript-keyword">movl</span>	(marg_size+4)(%ebp), %ecx
+	<span class="enscript-keyword">subl</span>	$5, %ecx			// skip self &amp; selector
+	<span class="enscript-keyword">shrl</span>	$2, %ecx
+	<span class="enscript-keyword">jle</span>	LMsgSendvArgsOK
+<span class="enscript-function-name">LMsgSendvArgLoop:</span>
+	<span class="enscript-keyword">decl</span>	%ecx
+	<span class="enscript-keyword">movl</span>	0(%edx, %ecx, 4), %eax
+	<span class="enscript-keyword">pushl</span>	%eax
+	<span class="enscript-keyword">jg</span>	LMsgSendvArgLoop
+
+<span class="enscript-function-name">LMsgSendvArgsOK:</span>
+	<span class="enscript-keyword">movl</span>	(selector+4)(%ebp), %ecx
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">movl</span>	(self+4)(%ebp),%ecx
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">call</span>	_objc_msgSend
+	<span class="enscript-keyword">movl</span>	%ebp,%esp
+	<span class="enscript-keyword">popl</span>	%ebp
+
+	<span class="enscript-keyword">ret
+</span>#endif
+	<span class="enscript-keyword">END_ENTRY</span>	_objc_msgSendv
+
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> void	objc_msgSend_stret(void *st_addr	, id self, SEL _cmd, ...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> objc_msgSend_stret is the struct-return form of msgSend.
+ <span class="enscript-keyword">*</span> The ABI calls for (sp+4) to be used as the address of the structure
+ <span class="enscript-keyword">*</span> being returned, with the parameters in the succeeding locations.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> On entry:	(sp+4)is the address where the structure is returned,
+ <span class="enscript-keyword">*</span>		(sp+8) is the message receiver,
+ <span class="enscript-keyword">*</span>		(sp+12) is the selector
+ <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">ENTRY</span>	_objc_msgSend_stret
+	<span class="enscript-keyword">CALL_MCOUNTER</span>	LP2
+
+	<span class="enscript-keyword">movl</span>	self_stret(%esp), %eax
+
+// check whether receiver is nil 
+	<span class="enscript-keyword">testl</span>	%eax, %eax
+	<span class="enscript-keyword">je</span>	LMsgSendStretNilSelf
+
+#if !defined(OBJC_COLLECTING_CACHE)
+// check whether context is multithreaded
+	<span class="enscript-keyword">EXTERN_TO_REG_AGAIN(__objc_multithread_mask,%ecx)
+</span>	<span class="enscript-keyword">testl</span>	%ecx, %ecx
+	<span class="enscript-keyword">je</span>	LMsgSendStretMT
+#endif
+
+// single threaded and receiver is non-nil: search the cache
+	<span class="enscript-keyword">CacheLookup</span> STRUCT_RETURN, MSG_SEND, LMsgSendStretCacheMiss
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSendStret, %edx	// flag struct-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+// cache miss: go search the method lists
+<span class="enscript-function-name">LMsgSendStretCacheMiss:</span>
+	<span class="enscript-keyword">MethodTableLookup</span> STRUCT_RETURN, MSG_SEND
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSendStret, %edx	// flag struct-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+#if !defined(OBJC_COLLECTING_CACHE)
+// multithreaded: hold _messageLock while accessing cache
+<span class="enscript-function-name">LMsgSendStretMT:</span>
+	<span class="enscript-keyword">movl</span>	$1, %ecx			// acquire _messageLock
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%eax, _messageLock, EXTERNAL_SYMBOL
+<span class="enscript-function-name">LMsgSendStretLockSpin:</span>
+	<span class="enscript-keyword">xchgl</span>	%ecx, (%eax)
+	<span class="enscript-keyword">cmpl</span>	$0, %ecx
+	<span class="enscript-keyword">jne</span>	LMsgSendStretLockSpin
+	<span class="enscript-keyword">movl</span>	self_stret(%esp), %eax	// restore eax
+
+	<span class="enscript-keyword">CacheLookup</span> STRUCT_RETURN, MSG_SEND, LMsgSendStretMTCacheMiss
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%ecx, _messageLock, EXTERNAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	$0, (%ecx)		// unlock
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSendStret, %edx	// flag struct-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+// cache miss: go search the method lists
+<span class="enscript-function-name">LMsgSendStretMTCacheMiss:</span>
+	<span class="enscript-keyword">MethodTableLookup</span> STRUCT_RETURN, MSG_SEND
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%ecx, _messageLock, EXTERNAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	$0, (%ecx)		// unlock
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSendStret, %edx	// flag struct-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+#endif
+
+// message sent to nil object: call optional handler and return nil
+<span class="enscript-function-name">LMsgSendStretNilSelf:</span>
+	<span class="enscript-keyword">EXTERN_TO_REG_AGAIN(__objc_msgNil,%eax)
+</span>	<span class="enscript-keyword">movl</span>	0(%eax), %eax		// load nil message handler
+	<span class="enscript-keyword">testl</span>	%eax, %eax
+	<span class="enscript-keyword">je</span>	LMsgSendStretDone	// if NULL just return and don't do anything
+
+	<span class="enscript-keyword">call</span>	*%eax			// call __objc_msgNil
+	<span class="enscript-keyword">xorl</span>	%eax, %eax		// Rezero $eax just in case
+<span class="enscript-function-name">LMsgSendStretDone:</span>
+	<span class="enscript-keyword">ret
+</span>
+<span class="enscript-function-name">LMsgSendStretExit:</span>
+	<span class="enscript-keyword">END_ENTRY</span>	_objc_msgSend_stret
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> void objc_msgSendSuper_stret(void *st_addr, struct objc_super *super, SEL _cmd, ...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> struct objc_super {
+ <span class="enscript-keyword">*</span>		id	receiver<span class="enscript-comment">;
+ *		Class	class;
+</span> <span class="enscript-keyword">*</span> }<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> objc_msgSendSuper_stret is the struct-return form of msgSendSuper.
+ <span class="enscript-keyword">*</span> The ABI calls for (sp+4) to be used as the address of the structure
+ <span class="enscript-keyword">*</span> being returned, with the parameters in the succeeding registers.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> On entry:	(sp+4)is the address where the structure is returned,
+ <span class="enscript-keyword">*</span>		(sp+8) is the address of the objc_super structure,
+ <span class="enscript-keyword">*</span>		(sp+12) is the selector
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">ENTRY</span>	_objc_msgSendSuper_stret
+	<span class="enscript-keyword">CALL_MCOUNTER</span> LP3
+
+	<span class="enscript-keyword">movl</span>	super_stret(%esp), %eax
+
+#if !defined(OBJC_COLLECTING_CACHE)
+// check whether context is multithreaded
+	<span class="enscript-keyword">EXTERN_TO_REG_AGAIN(__objc_multithread_mask,%ecx)
+</span>	<span class="enscript-keyword">testl</span>	%ecx, %ecx
+	<span class="enscript-keyword">je</span>	LMsgSendSuperStretMT
+#endif
+
+// single threaded and receiver is non-nil: search the cache
+	<span class="enscript-keyword">CacheLookup</span> STRUCT_RETURN, MSG_SENDSUPER, LMsgSendSuperStretCacheMiss
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSendStret, %edx	// flag struct-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+// cache miss: go search the method lists
+<span class="enscript-function-name">LMsgSendSuperStretCacheMiss:</span>
+	<span class="enscript-keyword">MethodTableLookup</span> STRUCT_RETURN, MSG_SENDSUPER
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSendStret, %edx	// flag struct-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+#if !defined(OBJC_COLLECTING_CACHE)
+<span class="enscript-function-name">LMsgSendStretSuperMT:</span>
+// multithreaded: hold _messageLock while accessing cache
+	<span class="enscript-keyword">movl</span>	$1, %ecx			// acquire _messageLock
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%eax, _messageLock, EXTERNAL_SYMBOL
+<span class="enscript-function-name">LMsgSendSuperStretLockSpin:</span>
+	<span class="enscript-keyword">xchgl</span>	%ecx, (%eax)
+	<span class="enscript-keyword">cmpl</span>	$0, %ecx
+	<span class="enscript-keyword">jne</span>	LMsgSendSuperStretLockSpin
+	<span class="enscript-keyword">movl</span>	super_stret(%esp), %eax	// restore eax
+
+	<span class="enscript-keyword">CacheLookup</span> STRUCT_RETURN, MSG_SENDSUPER, LMsgSendSuperStretMTCacheMiss
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%ecx, _messageLock, EXTERNAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	$0, (%ecx)		// unlock
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSendStret, %edx	// flag struct-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+
+// cache miss: go search the method lists
+<span class="enscript-function-name">LMsgSendSuperStretMTCacheMiss:</span>
+	<span class="enscript-keyword">MethodTableLookup</span> MSG_SENDSUPER
+	<span class="enscript-keyword">LEA_STATIC_DATA</span>	%ecx, _messageLock, EXTERNAL_SYMBOL
+	<span class="enscript-keyword">movl</span>	$0, (%ecx)		// unlock
+	<span class="enscript-keyword">movl</span>	$kFwdMsgSendStret, %edx	// flag struct-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>	*%eax			// goto *imp
+#endif
+
+<span class="enscript-function-name">LMsgSendSuperStretExit:</span>
+	<span class="enscript-keyword">END_ENTRY</span>	_objc_msgSendSuper_stret
+
+
+/********************************************************************
+ <span class="enscript-keyword">*</span> id objc_msgSendv_stret(void *st_addr, id self, SEL _cmd, unsigned size, marg_list frame)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> objc_msgSendv_stret is the struct-return form of msgSendv.
+ <span class="enscript-keyword">*</span> The ABI calls for (sp+4) to be used as the address of the structure
+ <span class="enscript-keyword">*</span> being returned, with the parameters in the succeeding locations.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> On entry:	(sp+4)  is the address in which the returned struct is put,
+ <span class="enscript-keyword">*</span>		(sp+8)  is the message receiver,
+ <span class="enscript-keyword">*</span>		(sp+12) is the selector,
+ <span class="enscript-keyword">*</span>		(sp+16) is the size of the marg_list, in bytes,
+ <span class="enscript-keyword">*</span>		(sp+20) is the address of the marg_list
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">ENTRY</span>	_objc_msgSendv_stret
+
+#if defined(KERNEL)
+	<span class="enscript-keyword">trap</span>				// _objc_msgSendv_stret is not for the kernel
+#else
+	<span class="enscript-keyword">pushl</span>	%ebp
+	<span class="enscript-keyword">movl</span>	%esp, %ebp
+	<span class="enscript-keyword">movl</span>	(marg_list_stret+4)(%ebp), %edx
+	<span class="enscript-keyword">addl</span>	$8, %edx			// skip self &amp; selector
+	<span class="enscript-keyword">movl</span>	(marg_size_stret+4)(%ebp), %ecx
+	<span class="enscript-keyword">subl</span>	$5, %ecx			// skip self &amp; selector
+	<span class="enscript-keyword">shrl</span>	$2, %ecx
+	<span class="enscript-keyword">jle</span>	LMsgSendvStretArgsOK
+<span class="enscript-function-name">LMsgSendvStretArgLoop:</span>
+	<span class="enscript-keyword">decl</span>	%ecx
+	<span class="enscript-keyword">movl</span>	0(%edx, %ecx, 4), %eax
+	<span class="enscript-keyword">pushl</span>	%eax
+	<span class="enscript-keyword">jg</span>	LMsgSendvStretArgLoop
+
+<span class="enscript-function-name">LMsgSendvStretArgsOK:</span>
+	<span class="enscript-keyword">movl</span>	(selector_stret+4)(%ebp), %ecx
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">movl</span>	(self_stret+4)(%ebp),%ecx
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">movl</span>	(struct_addr+4)(%ebp),%ecx
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">call</span>	_objc_msgSend_stret
+	<span class="enscript-keyword">movl</span>	%ebp,%esp
+	<span class="enscript-keyword">popl</span>	%ebp
+
+	<span class="enscript-keyword">ret
+</span>#endif
+	<span class="enscript-keyword">END_ENTRY</span>	_objc_msgSendv_stret
+
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> id _objc_msgForward(id self, SEL _cmd,...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+// Location LFwdStr contains the string <span class="enscript-string">&quot;forward::&quot;</span>
+// Location LFwdSel contains a pointer to LFwdStr, that can be changed
+// to point to another forward:: string for selector uniquing
+// purposes.  ALWAYS dereference LFwdSel to get to <span class="enscript-string">&quot;forward::&quot;</span> !!
+	<span class="enscript-keyword">.objc_meth_var_names
+</span>	<span class="enscript-keyword">.align</span>	2
+<span class="enscript-function-name">LFwdStr:</span>.ascii	<span class="enscript-string">&quot;forward::\0&quot;</span>
+
+	<span class="enscript-keyword">.objc_message_refs
+</span>	<span class="enscript-keyword">.align</span>	2
+<span class="enscript-function-name">LFwdSel:</span>.long	LFwdStr
+
+	<span class="enscript-keyword">.cstring
+</span>	<span class="enscript-keyword">.align</span>	2
+<span class="enscript-function-name">LUnkSelStr:</span>    .ascii	<span class="enscript-string">&quot;Does not recognize selector %s\0&quot;</span>
+
+	<span class="enscript-keyword">ENTRY</span>	__objc_msgForward
+
+#if defined(KERNEL)
+	<span class="enscript-keyword">trap</span>				// _objc_msgForward is not for the kernel
+#else
+	<span class="enscript-keyword">cmpl</span>	$kFwdMsgSendStret, %edx	// check secret flag for word vs struct return
+	<span class="enscript-keyword">je</span>	LForwardStretVersion	// jump to struct return version...
+
+	<span class="enscript-keyword">//</span> non-stret version ...
+	<span class="enscript-keyword">pushl</span>   %ebp
+	<span class="enscript-keyword">movl</span>    %esp,%ebp
+	<span class="enscript-keyword">movl</span>	(selector+4)(%esp), %eax
+#if defined(__DYNAMIC__)
+	<span class="enscript-keyword">call</span>	L__objc_msgForward$pic_base
+<span class="enscript-function-name">L__objc_msgForward$pic_base:</span>
+	<span class="enscript-keyword">popl</span>	%edx
+	<span class="enscript-keyword">leal</span>	LFwdSel-L__objc_msgForward$pic_base(%edx),%ecx
+	<span class="enscript-keyword">cmpl</span>	%ecx, %eax
+#else
+	<span class="enscript-keyword">cmpl</span>	LFwdSel, %eax
+#endif
+	<span class="enscript-keyword">je</span>	LMsgForwardError
+
+	<span class="enscript-keyword">leal</span>	(self+4)(%esp), %ecx
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">pushl</span>	%eax
+#if defined(__DYNAMIC__)
+	<span class="enscript-keyword">movl</span>	LFwdSel-L__objc_msgForward$pic_base(%edx),%ecx
+#else
+	<span class="enscript-keyword">movl</span>	LFwdSel,%ecx
+#endif
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">pushl</span>	(self+16)(%esp)
+	<span class="enscript-keyword">call</span>	_objc_msgSend
+	<span class="enscript-keyword">movl</span>    %ebp,%esp
+	<span class="enscript-keyword">popl</span>    %ebp
+	<span class="enscript-keyword">ret
+</span>
+// call error handler with unrecognized selector message
+	<span class="enscript-keyword">.align</span>	4, 0x90
+<span class="enscript-function-name">LMsgForwardError:</span>
+#if defined(__DYNAMIC__)
+	<span class="enscript-keyword">leal</span>	LFwdSel-L__objc_msgForward$pic_base(%edx),%eax
+	<span class="enscript-keyword">pushl</span> 	%eax
+	<span class="enscript-keyword">leal</span>	LUnkSelStr-L__objc_msgForward$pic_base(%edx),%eax
+	<span class="enscript-keyword">pushl</span> 	%eax
+#else
+	<span class="enscript-keyword">pushl</span>	$LFwdSel
+	<span class="enscript-keyword">pushl</span>	$LUnkSelStr
+#endif
+	<span class="enscript-keyword">pushl</span>	(self+12)(%esp)
+	<span class="enscript-keyword">BRANCH_EXTERN(___objc_error)</span>	// volatile, will not return
+
+// ***** Stret version of function below
+// ***** offsets have been changed (by adding a word to make room for the 
+// ***** structure, and labels have been changed to be unique.
+
+<span class="enscript-function-name">LForwardStretVersion:</span>
+	<span class="enscript-keyword">pushl</span>   %ebp
+	<span class="enscript-keyword">movl</span>    %esp,%ebp
+	<span class="enscript-keyword">movl</span>	(selector_stret+4)(%esp), %eax
+
+#if defined(__DYNAMIC__)
+	<span class="enscript-keyword">call</span>	L__objc_msgForwardStret$pic_base
+<span class="enscript-function-name">L__objc_msgForwardStret$pic_base:</span>
+	<span class="enscript-keyword">popl</span>	%edx
+	<span class="enscript-keyword">leal</span>	LFwdSel-L__objc_msgForwardStret$pic_base(%edx),%ecx
+	<span class="enscript-keyword">cmpl</span>	%ecx, %eax
+#else
+	<span class="enscript-keyword">cmpl</span>	LFwdSel, %eax
+#endif
+	<span class="enscript-keyword">je</span>	LMsgForwardStretError
+
+	<span class="enscript-keyword">leal</span>	(self_stret+4)(%esp), %ecx
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">pushl</span>	%eax
+#if defined(__DYNAMIC__)
+	<span class="enscript-keyword">movl</span>	LFwdSel-L__objc_msgForwardStret$pic_base(%edx),%ecx
+#else
+	<span class="enscript-keyword">movl</span>	LFwdSel,%ecx
+#endif
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">pushl</span>	(self_stret+16)(%esp)
+	<span class="enscript-keyword">call</span>	_objc_msgSend_stret
+	<span class="enscript-keyword">movl</span>    %ebp,%esp
+	<span class="enscript-keyword">popl</span>    %ebp
+	<span class="enscript-keyword">ret
+</span>
+// call error handler with unrecognized selector message
+	<span class="enscript-keyword">.align</span>	4, 0x90
+<span class="enscript-function-name">LMsgForwardStretError:</span>
+#if defined(__DYNAMIC__)
+	<span class="enscript-keyword">leal</span>	LFwdSel-L__objc_msgForwardStret$pic_base(%edx),%eax
+	<span class="enscript-keyword">pushl</span> 	%eax
+	<span class="enscript-keyword">leal</span>	LUnkSelStr-L__objc_msgForwardStret$pic_base(%edx),%eax
+	<span class="enscript-keyword">pushl</span> 	%eax
+#else
+	<span class="enscript-keyword">pushl</span>	$LFwdSel
+	<span class="enscript-keyword">pushl</span>	$LUnkSelStr
+#endif
+	<span class="enscript-keyword">pushl</span>	(self_stret+12)(%esp)
+	<span class="enscript-keyword">BRANCH_EXTERN_AGAIN(___objc_error)</span>	// volatile, will not return
+
+#endif defined (KERNEL)
+	<span class="enscript-keyword">END_ENTRY</span>	__objc_msgForward
+
+</pre>
+<hr />
+</body></html>

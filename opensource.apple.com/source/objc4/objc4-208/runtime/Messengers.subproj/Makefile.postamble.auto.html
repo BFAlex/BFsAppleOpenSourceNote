@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>Makefile.postamble</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">Makefile.postamble&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="Makefile.postamble">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+<span class="enscript-comment">###############################################################################
+</span><span class="enscript-comment">#  Makefile.postamble
+</span><span class="enscript-comment">#  Copyright 1997, Apple Computer, Inc.
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#  Use this makefile, which is imported after all other makefiles, to
+</span><span class="enscript-comment">#  override attributes for a project's Makefile environment. This allows you  
+</span><span class="enscript-comment">#  to take advantage of the environment set up by the other Makefiles. 
+</span><span class="enscript-comment">#  You can also define custom rules at the end of this file.
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">###############################################################################
+</span><span class="enscript-comment"># 
+</span><span class="enscript-comment"># These variables are exported by the standard makefiles and can be 
+</span><span class="enscript-comment"># used in any customizations you make.  They are *outputs* of
+</span><span class="enscript-comment"># the Makefiles and should be used, not set.
+</span><span class="enscript-comment"># 
+</span><span class="enscript-comment">#  PRODUCTS: products to install.  All of these products will be placed in
+</span><span class="enscript-comment">#	 the directory $(DSTROOT)$(INSTALLDIR)
+</span><span class="enscript-comment">#  GLOBAL_RESOURCE_DIR: The directory to which resources are copied.
+</span><span class="enscript-comment">#  LOCAL_RESOURCE_DIR: The directory to which localized resources are copied.
+</span><span class="enscript-comment">#  OFILE_DIR: Directory into which .o object files are generated.
+</span><span class="enscript-comment">#  DERIVED_SRC_DIR: Directory used for all other derived files
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#  ALL_CFLAGS:  flags to pass when compiling .c files
+</span><span class="enscript-comment">#  ALL_MFLAGS:  flags to pass when compiling .m files
+</span><span class="enscript-comment">#  ALL_CCFLAGS:  flags to pass when compiling .cc, .cxx, and .C files
+</span><span class="enscript-comment">#  ALL_MMFLAGS:  flags to pass when compiling .mm, .mxx, and .M files
+</span><span class="enscript-comment">#  ALL_PRECOMPFLAGS:  flags to pass when precompiling .h files
+</span><span class="enscript-comment">#  ALL_LDFLAGS:  flags to pass when linking object files
+</span><span class="enscript-comment">#  ALL_LIBTOOL_FLAGS:  flags to pass when libtooling object files
+</span><span class="enscript-comment">#  ALL_PSWFLAGS:  flags to pass when processing .psw and .pswm (pswrap) files
+</span><span class="enscript-comment">#  ALL_RPCFLAGS:  flags to pass when processing .rpc (rpcgen) files
+</span><span class="enscript-comment">#  ALL_YFLAGS:  flags to pass when processing .y (yacc) files
+</span><span class="enscript-comment">#  ALL_LFLAGS:  flags to pass when processing .l (lex) files
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#  NAME: name of application, bundle, subproject, palette, etc.
+</span><span class="enscript-comment">#  LANGUAGE: langage in which the project is written (default &quot;English&quot;)
+</span><span class="enscript-comment">#  LOCAL_RESOURCES: localized resources (e.g. nib's, images) of project
+</span><span class="enscript-comment">#  GLOBAL_RESOURCES: non-localized resources of project
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#  SRCROOT:  base directory in which to place the new source files
+</span><span class="enscript-comment">#  SRCPATH:  relative path from SRCROOT to present subdirectory
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#  INSTALLDIR: Directory the product will be installed into by 'install' target
+</span><span class="enscript-comment">#  PUBLIC_HDR_INSTALLDIR: where to install public headers.  Don't forget
+</span><span class="enscript-comment">#        to prefix this with DSTROOT when you use it.
+</span><span class="enscript-comment">#  PRIVATE_HDR_INSTALLDIR: where to install private headers.  Don't forget
+</span><span class="enscript-comment">#	 to prefix this with DSTROOT when you use it.
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#  EXECUTABLE_EXT: Executable extension for the platform (i.e. .exe on Windows)
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">###############################################################################
+</span>
+<span class="enscript-comment"># Some compiler flags can be overridden here for certain build situations.
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#    WARNING_CFLAGS:  flag used to set warning level (defaults to -Wmost)
+</span><span class="enscript-comment">#    DEBUG_SYMBOLS_CFLAGS:  debug-symbol flag passed to all builds (defaults
+</span><span class="enscript-comment">#	to -g)
+</span><span class="enscript-comment">#    DEBUG_BUILD_CFLAGS:  flags passed during debug builds (defaults to -DDEBUG)
+</span><span class="enscript-comment">#    OPTIMIZE_BUILD_CFLAGS:  flags passed during optimized builds (defaults
+</span><span class="enscript-comment">#	to -O)
+</span><span class="enscript-comment">#    PROFILE_BUILD_CFLAGS:  flags passed during profile builds (defaults
+</span><span class="enscript-comment">#	to -pg -DPROFILE)
+</span><span class="enscript-comment">#    LOCAL_DIR_INCLUDE_DIRECTIVE:  flag used to add current directory to
+</span><span class="enscript-comment">#	the include path (defaults to -I.)
+</span><span class="enscript-comment">#    DEBUG_BUILD_LDFLAGS, OPTIMIZE_BUILD_LDFLAGS, PROFILE_BUILD_LDFLAGS: flags
+</span><span class="enscript-comment">#	passed to ld/libtool (defaults to nothing)
+</span>
+ifeq <span class="enscript-string">&quot;$(PLATFORM_OS)&quot;</span> <span class="enscript-string">&quot;solaris&quot;</span>
+CODE_GEN_STYLE = STATIC
+else
+ifeq <span class="enscript-string">&quot;$(PLATFORM_OS)&quot;</span> <span class="enscript-string">&quot;hpux&quot;</span>
+CODE_GEN_STYLE = STATIC
+endif <span class="enscript-comment"># hpux
+</span>endif <span class="enscript-comment"># solaris
+</span>
+<span class="enscript-comment"># Library and Framework projects only:
+</span><span class="enscript-comment">#    INSTALL_NAME_DIRECTIVE:  This directive ensures that executables linked
+</span><span class="enscript-comment">#	against the framework will run against the correct version even if
+</span><span class="enscript-comment">#	the current version of the framework changes.  You may override this
+</span><span class="enscript-comment">#	to &quot;&quot; as an alternative to using the DYLD_LIBRARY_PATH during your
+</span><span class="enscript-comment">#	development cycle, but be sure to restore it before installing.
+</span>
+
+<span class="enscript-comment"># Ownership and permissions of files installed by 'install' target
+</span>
+<span class="enscript-comment">#INSTALL_AS_USER = root
+</span>        <span class="enscript-comment"># User/group ownership 
+</span><span class="enscript-comment">#INSTALL_AS_GROUP = wheel
+</span>        <span class="enscript-comment"># (probably want to set both of these) 
+</span><span class="enscript-comment">#INSTALL_PERMISSIONS =
+</span>        <span class="enscript-comment"># If set, 'install' chmod's executable to this
+</span>
+
+<span class="enscript-comment"># Options to strip.  Note: -S strips debugging symbols (executables can be stripped
+</span><span class="enscript-comment"># down further with -x or, if they load no bundles, with no options at all).
+</span>
+<span class="enscript-comment">#STRIPFLAGS = -S
+</span>
+
+<span class="enscript-comment">#########################################################################
+</span><span class="enscript-comment"># Put rules to extend the behavior of the standard Makefiles here.  Include them in
+</span><span class="enscript-comment"># the dependency tree via cvariables like AFTER_INSTALL in the Makefile.preamble.
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment"># You should avoid redefining things like &quot;install&quot; or &quot;app&quot;, as they are
+</span><span class="enscript-comment"># owned by the top-level Makefile API and no context has been set up for where 
+</span><span class="enscript-comment"># derived files should go.
+</span><span class="enscript-comment">#
+</span></pre>
+<hr />
+</body></html>

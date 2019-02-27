@@ -1,0 +1,463 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>objc-msg-hppa-pdo.s</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">objc-msg-hppa-pdo.s&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="objc-msg-hppa-pdo.s">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+/*
+ <span class="enscript-keyword">*</span> Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_START@
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> Portions Copyright (c) 1999 Apple Computer, Inc.  All Rights
+ <span class="enscript-keyword">*</span> Reserved.  This file contains Original Code and/or Modifications of
+ <span class="enscript-keyword">*</span> Original Code as defined in and that are subject to the Apple Public
+ <span class="enscript-keyword">*</span> Source License Version 1.1 (the <span class="enscript-string">&quot;License&quot;</span>).  You may not use this file
+ <span class="enscript-keyword">*</span> except in compliance with the License.  Please obtain a copy of the
+ <span class="enscript-keyword">*</span> License at <a href="http://www.apple.com/publicsource">http://www.apple.com/publicsource</a> and read it before using
+ <span class="enscript-keyword">*</span> this file.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> The Original Code and all software distributed under the License are
+ <span class="enscript-keyword">*</span> distributed on an <span class="enscript-string">&quot;AS IS&quot;</span> basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ <span class="enscript-keyword">*</span> EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ <span class="enscript-keyword">*</span> INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ <span class="enscript-keyword">*</span> FITNESS FOR A PARTICULAR PURPOSE OR NON- INFRINGEMENT.  Please see the
+ <span class="enscript-keyword">*</span> License for the specific language governing rights and limitations
+ <span class="enscript-keyword">*</span> under the License.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_END@
+ <span class="enscript-keyword">*/
+</span>/*
+** 9605: Dan Schmidt (DSG&amp;A)
+**	Modified to clean up the calling conventions on all routines.
+**	This allows gdb to back trace from and through these routines.
+*/
+
+#define isa		0
+#define cache		32
+#define mask		0
+#define buckets		8
+#define method_name	0
+#define method_imp	8
+
+<span class="enscript-comment">;;
+;; Objc_msgSend: Standard messenger
+</span><span class="enscript-comment">;; optimized for hppa: 20? clocks (best case) + 6 clocks / probe
+;;
+</span>
+    <span class="enscript-keyword">.CODE
+</span>objc_msgSend
+    <span class="enscript-keyword">.PROC
+</span>    <span class="enscript-keyword">.CALLINFO
+</span>    <span class="enscript-keyword">.ENTRY
+</span>
+    <span class="enscript-keyword">comib,=,n</span>	0,%arg0,L$exitNull		<span class="enscript-comment">; Return 0 if self == nil
+    ldil	L'_objc_multithread_mask,%r20	; '
+</span>    <span class="enscript-keyword">ldw</span>		R'_objc_multithread_mask(%r20),%r31	<span class="enscript-comment">; '
+    comib,=	0,%r31,L$lock			; lock if multithreaded
+</span>    <span class="enscript-keyword">ldw</span> 	isa(0,%arg0),%r19		<span class="enscript-comment">; &lt;ds&gt; class = self-&gt;isa;
+L$continue
+</span>    <span class="enscript-keyword">ldw</span> 	cache(0,%r19),%r20		<span class="enscript-comment">; cache = class-&gt;cache
+    ldw 	mask(0,%r20),%r21		; mask = cache-&gt;mask
+</span>    <span class="enscript-keyword">ldo</span> 	buckets(%r20),%r20		<span class="enscript-comment">; buckets = cache-&gt;buckets
+    and 	%r21,%arg1,%r22			; index = selector &amp; mask
+</span>L$loop
+    <span class="enscript-keyword">ldwx,s</span>	%r22(0,%r20),%r19		<span class="enscript-comment">; method = cache-&gt;buckets[index]
+    comib,=,n	0,%r19,L$cacheMiss		; if (method == NULL)
+</span>    <span class="enscript-keyword">ldw</span> 	method_name(0,%r19),%r1		<span class="enscript-comment">;
+    addi	1,%r22,%r22			; ++index
+</span>    <span class="enscript-keyword">comb,&lt;&gt;</span>	%r1,%arg1,L$loop		<span class="enscript-comment">; if (name!=sel) continue loop
+    and 	%r21,%r22,%r22			; &lt;delay slot&gt; index &amp;=mask
+</span>    <span class="enscript-keyword">ldw</span> 	method_imp(0,%r19),%r22		<span class="enscript-comment">; Implementation into r22
+    comib,=,n	0,%r31,L$unlock			; unlock if multithreaded
+</span>    <span class="enscript-keyword">b</span>		$$dyncall			<span class="enscript-comment">; goto *imp;
+    nop
+</span>
+L$exitNull
+    <span class="enscript-keyword">bv</span>		0(%rp)				<span class="enscript-comment">; return null
+    copy	0,%ret0				; &lt;delay slot&gt; return val = 0
+</span>
+L$lock
+    <span class="enscript-keyword">ldil</span>	L'messageLock,%r1		<span class="enscript-comment">; '
+    ldo		R'messageLock(%r1),%r20		; '
+</span>    <span class="enscript-keyword">addi</span>	0xf,%r20,%r20			<span class="enscript-comment">; add 15
+    depi	0,31,4,%r20			; clear low byte to align on 16
+</span>L$spin
+    <span class="enscript-keyword">ldcws</span>	0(0,%r20),%r1			<span class="enscript-comment">; try to lock it
+    comib,=	0,%r1,L$spin			; if locked, try again
+</span>    <span class="enscript-keyword">nop</span>						<span class="enscript-comment">; &lt;ds&gt;
+    b		L$continue			; rejoin mainline
+</span>    <span class="enscript-keyword">nop</span>						<span class="enscript-comment">; &lt;ds&gt;
+
+</span>L$unlock
+    <span class="enscript-keyword">ldil</span>	L'messageLock,%r1		<span class="enscript-comment">; '
+    ldo		R'messageLock(%r1),%r20		; '
+</span>    <span class="enscript-keyword">addi</span>	0xf,%r20,%r20			<span class="enscript-comment">; add 15
+    depi	0,31,4,%r20			; clear low byte to align on 16
+</span>    <span class="enscript-keyword">ldi</span>		1,%r1				<span class="enscript-comment">; get a one
+    b		$$dyncall			;    goto *imp;
+</span>    <span class="enscript-keyword">.EXIT
+</span>    <span class="enscript-keyword">stw</span>		%r1,0(0,%r20)			<span class="enscript-comment">; &lt;ds&gt; clear lock
+
+</span>/*
+** We have to save all the register based arguments (including floating
+** point) before calling _class_lookupMethodAndLoadCache.  This is because
+** we don't know what arguments were passed to us, and the arguments are
+** not guaranteed to be saved across procedure calls (they're all caller-saved)
+** We also have to save the return address (since we didn't save it on entry).
+*/
+L$cacheMiss
+    <span class="enscript-keyword">.CALLINFO</span> FRAME=80, CALLS, SAVE_RP, SAVE_SP, ENTRY_GR=3
+    <span class="enscript-keyword">.ENTRY
+</span>
+    <span class="enscript-keyword">copy</span>	%sp,%r19		<span class="enscript-comment">; save sp in r19 to use store modify
+    stwm	%r3,128(0,%sp)		; save frame pointer &amp; allocate stack
+</span>    <span class="enscript-keyword">copy</span>	%r19,%r3		<span class="enscript-comment">; establish new frame pointer
+
+</span>    <span class="enscript-keyword">stw</span>		%rp,  -20(0,%r3)	<span class="enscript-comment">; save rp in frame marker
+    stw		%sp,   -4(0,%r3)	; save sp in frame marker
+</span>    <span class="enscript-keyword">stw</span>		%arg0,-36(0,%r3)	<span class="enscript-comment">; save arg0 in fixed arg area
+    stw		%arg1,-40(0,%r3)	; save arg1 in fixed arg area
+</span>    <span class="enscript-keyword">stw</span>		%arg2,-44(0,%r3)	<span class="enscript-comment">; save arg2 in fixed arg area
+    stw		%arg3,-48(0,%r3)	; save arg3 in fixed arg area
+</span>    <span class="enscript-keyword">stw</span>		%ret0,  4(0,%r3)	<span class="enscript-comment">; save return struct ptr
+
+</span>    <span class="enscript-keyword">fstds,mb</span>	%fr4,8(0,%r19)		<span class="enscript-comment">; Save floating point args
+    fstds,mb	%fr5,8(0,%r19)		; mb (modify before) is used
+</span>    <span class="enscript-keyword">fstds,mb</span>	%fr6,8(0,%r19)
+    <span class="enscript-keyword">fstds,mb</span>	%fr7,8(0,%r19)
+
+    <span class="enscript-keyword">.CALL
+</span>    <span class="enscript-keyword">bl</span>		_class_lookupMethodAndLoadCache,2
+    <span class="enscript-keyword">ldw</span>		isa(0,%arg0),%arg0	<span class="enscript-comment">; &lt;delay slot&gt; arg 0 = self-&gt;isa
+    copy	%ret0,%r22		; move return value r22 for dyncall
+</span>
+    <span class="enscript-keyword">copy</span>	%r3,%r19		<span class="enscript-comment">; prev frame for fldds,mb
+    fldds,mb	8(0,%r19),%fr4
+</span>    <span class="enscript-keyword">fldds,mb</span>	8(0,%r19),%fr5
+    <span class="enscript-keyword">fldds,mb</span>	8(0,%r19),%fr6
+    <span class="enscript-keyword">fldds,mb</span>	8(0,%r19),%fr7
+
+    <span class="enscript-keyword">ldw</span>		   4(0,%r3),%ret0	<span class="enscript-comment">; restore everything
+    ldw		 -36(0,%r3),%arg0
+</span>    <span class="enscript-keyword">ldw</span>		 -40(0,%r3),%arg1
+    <span class="enscript-keyword">ldw</span>		 -44(0,%r3),%arg2
+    <span class="enscript-keyword">ldw</span>		 -48(0,%r3),%arg3
+    <span class="enscript-keyword">ldw</span>		 -20(0,%r3),%rp		<span class="enscript-comment">; restore return pointer
+    ldwm	-128(0,%sp),%r3		; free stack, restore prev frame pointer
+</span>
+    <span class="enscript-keyword">ldil</span>	L'_objc_multithread_mask,%r20		<span class="enscript-comment">; '
+    ldw		R'_objc_multithread_mask(%r20),%r20	; '
+</span>    <span class="enscript-keyword">comib,=</span>	0,%r20,L$unlock		<span class="enscript-comment">; unlock if multithreaded
+    nop					; delay slot
+</span>
+    <span class="enscript-keyword">b</span>		$$dyncall		<span class="enscript-comment">; goto *imp (in r22);
+    .EXIT
+</span>    <span class="enscript-keyword">nop
+</span>    <span class="enscript-keyword">.PROCEND
+</span>
+<span class="enscript-comment">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+</span>#define receiver	0
+#define class		4
+
+objc_msgSendSuper
+    <span class="enscript-keyword">.PROC
+</span>    <span class="enscript-keyword">.CALLINFO
+</span>    <span class="enscript-keyword">.ENTRY
+</span>
+    <span class="enscript-keyword">ldil</span>	L'_objc_multithread_mask,%r20		<span class="enscript-comment">; '
+    ldw		R'_objc_multithread_mask(%r20),%r31	; '
+</span>    <span class="enscript-keyword">comib,=</span>	0,%r31,L$slock			<span class="enscript-comment">; lock if multithreaded
+    ldw		class(0,%arg0),%r19		; &lt;ds&gt; class = caller-&gt;class;
+</span>L$scontinue
+    <span class="enscript-keyword">ldw</span>		cache(0,%r19),%r20		<span class="enscript-comment">; cache = class-&gt;cache
+    ldw		mask(0,%r20),%r21		; mask = cache-&gt;mask
+</span>    <span class="enscript-keyword">ldo</span>		buckets(%r20),%r20		<span class="enscript-comment">; buckets = cache-&gt;buckets
+    and		%r21,%arg1,%r22			; index = selector &amp; mask;
+</span>L$LS1
+    <span class="enscript-keyword">ldwx,s</span>	%r22(0,%r20),%r19		<span class="enscript-comment">; method = cache-&gt;buckets[index]
+    comib,=,n	0,%r19,L$cacheMiss2		; if (method == NULL)
+</span>    <span class="enscript-keyword">ldw</span>		method_name(0,%r19),%r1		<span class="enscript-comment">; get method name
+    addi	1,%r22,%r22			; ++index
+</span>    <span class="enscript-keyword">comb,&lt;&gt;</span>	%r1, %arg1, L$LS1		<span class="enscript-comment">; if (name!=sel) continue loop
+    and		%r21,%r22,%r22			; &lt;delay slot&gt; index &amp;=mask
+</span>    <span class="enscript-keyword">ldw</span>		method_imp(0,%r19),%r22		<span class="enscript-comment">; get method implementation
+    comib,=	0,%r31,L$sunlock		; unlock if multithreaded
+</span>    <span class="enscript-keyword">ldw</span>		receiver(0,%arg0),%arg0		<span class="enscript-comment">; self = caller-&gt;receiver;
+    b		$$dyncall			; goto *imp (in r22);
+</span>    <span class="enscript-keyword">nop
+</span>
+L$slock
+    <span class="enscript-keyword">ldil</span>	L'messageLock,%r1		<span class="enscript-comment">; '
+    ldo		R'messageLock(%r1),%r20		; '
+</span>    <span class="enscript-keyword">addi</span>	0xf,%r20,%r20			<span class="enscript-comment">; add 15
+    depi	0,31,4,%r20			; clear low byte to align on 16
+</span>L$sspin
+    <span class="enscript-keyword">ldcws</span>	0(0,%r20),%r1			<span class="enscript-comment">; try to lock it
+    comib,=	0,%r1,L$sspin			; if locked, try again
+</span>    <span class="enscript-keyword">nop</span>						<span class="enscript-comment">; &lt;ds&gt;
+    b		L$scontinue			; rejoin mainline
+</span>    <span class="enscript-keyword">nop</span>						<span class="enscript-comment">; &lt;ds&gt;
+
+</span>L$sunlock
+    <span class="enscript-keyword">ldil</span>	L'messageLock,%r1		<span class="enscript-comment">; '
+    ldo		R'messageLock(%r1),%r20		; '
+</span>    <span class="enscript-keyword">addi</span>	0xf,%r20,%r20			<span class="enscript-comment">; add 15
+    depi	0,31,4,%r20			; clear low byte to align on 16
+</span>    <span class="enscript-keyword">ldi</span>		1,%r1				<span class="enscript-comment">; get a one
+    b		$$dyncall			; goto *imp (in r22);
+</span>    <span class="enscript-keyword">.EXIT
+</span>    <span class="enscript-keyword">stw</span>		%r1,0(0,%r20)			<span class="enscript-comment">; &lt;ds&gt; clear lock
+
+</span>L$cacheMiss2
+    <span class="enscript-keyword">.CALLINFO</span> FRAME=80, CALLS, SAVE_RP, SAVE_SP, ENTRY_GR=3
+    <span class="enscript-keyword">.ENTRY
+</span>
+    <span class="enscript-keyword">copy</span>	%sp,%r19		<span class="enscript-comment">; save sp in r19 to use store modify
+    stwm	%r3,128(0,%sp)		; save frame pointer &amp; allocate stack
+</span>    <span class="enscript-keyword">copy</span>	%r19,%r3		<span class="enscript-comment">; establish new frame pointer
+
+</span>    <span class="enscript-keyword">stw</span>		%rp,  -20(0,%r3)	<span class="enscript-comment">; save rp in frame marker
+    stw		%sp,   -4(0,%r3)	; save sp in frame marker
+</span>    <span class="enscript-keyword">stw</span>		%arg0,-36(0,%r3)	<span class="enscript-comment">; save arg0 in fixed arg area
+    stw		%arg1,-40(0,%r3)	; save arg1 in fixed arg area
+</span>    <span class="enscript-keyword">stw</span>		%arg2,-44(0,%r3)	<span class="enscript-comment">; save arg2 in fixed arg area
+    stw		%arg3,-48(0,%r3)	; save arg3 in fixed arg area
+</span>    <span class="enscript-keyword">stw</span>		%ret0,  4(0,%r3)	<span class="enscript-comment">; save return struct ptr
+
+</span>    <span class="enscript-keyword">fstds,mb</span>	%fr4,8(0,%r19)		<span class="enscript-comment">; Save floating point args
+    fstds,mb	%fr5,8(0,%r19)		; mb (modify before) is used
+</span>    <span class="enscript-keyword">fstds,mb</span>	%fr6,8(0,%r19)
+    <span class="enscript-keyword">fstds,mb</span>	%fr7,8(0,%r19)
+
+    <span class="enscript-keyword">.CALL
+</span>    <span class="enscript-keyword">bl</span>		_class_lookupMethodAndLoadCache,2
+    <span class="enscript-keyword">ldw</span>		class(0,%arg0),%arg0	<span class="enscript-comment">; &lt;delay slot&gt; arg0 = caller-&gt;class;
+    copy	%ret0,%r22		; move return value r22 for dyncall
+</span>
+    <span class="enscript-keyword">copy</span>	%r3,%r19		<span class="enscript-comment">; prev frame for fldds,mb
+    fldds,mb	8(0,%r19),%fr4
+</span>    <span class="enscript-keyword">fldds,mb</span>	8(0,%r19),%fr5
+    <span class="enscript-keyword">fldds,mb</span>	8(0,%r19),%fr6
+    <span class="enscript-keyword">fldds,mb</span>	8(0,%r19),%fr7
+
+    <span class="enscript-keyword">ldw</span>		   4(0,%r3),%ret0	<span class="enscript-comment">; restore everything
+    ldw		 -36(0,%r3),%arg0
+</span>    <span class="enscript-keyword">ldw</span>		 -40(0,%r3),%arg1
+    <span class="enscript-keyword">ldw</span>		 -44(0,%r3),%arg2
+    <span class="enscript-keyword">ldw</span>		 -48(0,%r3),%arg3
+    <span class="enscript-keyword">ldw</span>		 -20(0,%r3),%rp		<span class="enscript-comment">; restore return pointer
+    ldwm	-128(0,%sp),%r3		; free stack, restore prev frame pointer
+</span>
+    <span class="enscript-keyword">ldil</span>	L'_objc_multithread_mask,%r20		<span class="enscript-comment">; '
+    ldw		R'_objc_multithread_mask(%r20),%r20	; '
+</span>    <span class="enscript-keyword">comib,=</span>	0,%r20,L$unlock			<span class="enscript-comment">; unlock if multithreaded
+    ldw         receiver(0,%arg0),%arg0		; self = caller-&gt;receiver;
+</span>
+    <span class="enscript-keyword">b</span>		$$dyncall			<span class="enscript-comment">; goto *imp (in r22);
+    .EXIT
+</span>    <span class="enscript-keyword">nop
+</span>    <span class="enscript-keyword">.PROCEND
+</span>
+<span class="enscript-comment">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+</span>    <span class="enscript-keyword">.EXPORT</span> OBJC_METH_VAR_NAME_FORWARD,DATA
+    <span class="enscript-keyword">.SPACE</span> $PRIVATE$
+    <span class="enscript-keyword">.SUBSPA</span> $DATA$
+<span class="enscript-function-name">OBJC_METH_VAR_NAME_FORWARD:</span>
+    <span class="enscript-keyword">.STRING</span> <span class="enscript-string">&quot;forward::\0&quot;</span>
+
+    <span class="enscript-keyword">.SUBSPA</span> $$OBJC_MESSAGE_REFS$$,QUAD=1,ALIGN=4,ACCESS=31
+forwardstr
+    <span class="enscript-keyword">.word</span> OBJC_METH_VAR_NAME_FORWARD
+
+    <span class="enscript-keyword">.DATA
+</span><span class="enscript-comment">;   .cstring
+;   .align 1
+</span>errstr
+    <span class="enscript-keyword">.string</span> <span class="enscript-string">&quot;Does not recognize selector %s\0&quot;</span>
+
+    <span class="enscript-keyword">.CODE
+</span>
+<span class="enscript-comment">;
+; NOTE: Because the stack grows from low mem to high mem on this machine
+</span><span class="enscript-comment">; and the args go the other way, the marg_list pointer is 4 above the first arg
+; and subsequent arguments are at NEGATIVE offsets from the marg_list.
+</span><span class="enscript-comment">; This means that marg_getValue() and related macros will have to be adjusted
+; appropriately.
+</span><span class="enscript-comment">;
+_objc_msgForward
+</span>    <span class="enscript-keyword">.PROC
+</span>    <span class="enscript-keyword">.CALLINFO</span> FRAME=80, CALLS, SAVE_RP, SAVE_SP, ENTRY_GR=3
+    <span class="enscript-keyword">.ENTRY
+</span>
+    <span class="enscript-keyword">copy</span>	%sp,%r19		<span class="enscript-comment">; save sp
+    stwm	%r3,128(0,%sp)		; save frame pointer &amp; allocate stack
+</span>    <span class="enscript-keyword">copy</span>	%r19,%r3		<span class="enscript-comment">; establish new frame pointer
+
+</span>    <span class="enscript-keyword">stw</span>		%rp,  -20(0,%r3)	<span class="enscript-comment">; save rp in frame marker
+    stw		%sp,   -4(0,%r3)	; save sp in frame marker
+</span>    <span class="enscript-keyword">stw</span>		%arg3,-48(0,%r3)	<span class="enscript-comment">; save args in fixed arg area
+    stw		%arg2,-44(0,%r3)	; 
+</span>    <span class="enscript-keyword">stw</span>		%arg1,-40(0,%r3)	<span class="enscript-comment">; _cmd selector (arg1)
+    stw		%arg0,-36(0,%r3)	; self
+</span>
+    <span class="enscript-keyword">addil</span>       L'forwardstr-$global$,%dp	<span class="enscript-comment">; '
+    ldo         R'forwardstr-$global$(%r1),%r20	; '
+</span>    <span class="enscript-keyword">ldw</span>         0(0,%r20),%r20			<span class="enscript-comment">; get forward::
+    combt,=,n	%r20,%arg1,L$error		; if (sel==@selector(forward::))
+</span>
+<span class="enscript-comment">    ; Set up call as [self forward:sel :marg_list]
+    copy   	%arg1,%arg2			; original selector in arg2
+</span>    <span class="enscript-keyword">copy</span>   	%r20,%arg1			<span class="enscript-comment">; forward:: as arg1 (_cmd)
+
+</span>    <span class="enscript-keyword">.CALL</span> ARGW0=GR,ARGW1=GR,ARGW2=GR,ARGW3=GR
+    <span class="enscript-keyword">bl</span>     	objc_msgSend,2			<span class="enscript-comment">; call forward::
+    ldo   	-32(%r3),%arg3			; &lt;delay slot&gt; copy original sel
+</span>
+    <span class="enscript-keyword">ldw</span>		-20(0,%r3),%rp		<span class="enscript-comment">; restore RP
+    bv		0(%rp)			; return to caller
+</span>    <span class="enscript-keyword">ldwm</span>	-128(0,%sp),%r3		<span class="enscript-comment">; free stack, restore prev frame pointer
+
+</span>L$error
+    <span class="enscript-keyword">addil</span>  	L'errstr-$global$,%dp		<span class="enscript-comment">; '
+    ldo    	R'errstr-$global$(%r1),%arg1	; '
+</span>    <span class="enscript-keyword">.CALL</span> ARGW0=GR,ARGW1=GR
+    <span class="enscript-keyword">bl</span>     	__objc_error,%rp		<span class="enscript-comment">; __objc_error never returns,
+    .EXIT
+</span>    <span class="enscript-keyword">copy</span>   	%r20,%arg2			<span class="enscript-comment">; so no need to clean up.
+    .PROCEND
+</span>
+<span class="enscript-comment">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+</span><span class="enscript-comment">; Algorithm is as follows:
+; . Calculate how much stack size is needed for any arguments not in the
+</span><span class="enscript-comment">;   general registers and allocate space on stack.
+; . Restore general argument regs from the bottom of the marg_list.
+</span><span class="enscript-comment">; . Restore fp argument regs from the same area.
+;   The first two args in the marg list are always old obj and struct
+</span><span class="enscript-comment">;   return address - since old selector (_cmd) is not needed, struct
+;   return (which might be needed) is stashed in place of _cmd.
+</span><span class="enscript-comment">; . Call the new method.
+
+</span>objc_msgSendv
+    <span class="enscript-keyword">.PROC
+</span>    <span class="enscript-keyword">.CALLINFO</span> FRAME=80, CALLS, SAVE_RP, SAVE_SP, ENTRY_GR=3
+    <span class="enscript-keyword">.ENTRY
+</span>
+    <span class="enscript-keyword">copy</span>	%sp,%r19		<span class="enscript-comment">; save sp
+    stwm	%r3,128(0,%sp)		; save frame pointer &amp; allocate stack
+</span>    <span class="enscript-keyword">copy</span>	%r19,%r3		<span class="enscript-comment">; establish new frame pointer
+
+</span>    <span class="enscript-keyword">stw</span>		%rp,  -20(0,%r3)	<span class="enscript-comment">; save rp in frame marker
+    stw		%sp,   -4(0,%r3)	; save sp in frame marker
+</span>
+    <span class="enscript-keyword">ldo</span>    	95(%arg2),%r19		<span class="enscript-comment">; Calculate frame size, rounded
+    depi   	0,31,6,%r19		; up to 64 byte boundary...
+</span>    <span class="enscript-keyword">add</span>    	%r19,%sp,%sp		<span class="enscript-comment">; Allocate frame area (no locals)
+
+</span>    <span class="enscript-keyword">copy</span>   	%arg2,%r20		<span class="enscript-comment">; r20 now holds arg size
+    ldo    	-16(%arg3),%r21		; r21 now holds marg_list+16
+</span>    <span class="enscript-keyword">ldws</span>   	0(0,%r21),%arg3		<span class="enscript-comment">; Get old general register args 2-3
+    ldws   	4(0,%r21),%arg2		; (self and sel not needed)
+</span>    <span class="enscript-keyword">fldds</span>  	0(0,%r21),%fr7		<span class="enscript-comment">; Mirror to fp regs
+    fldws   	4(0,%r21),%fr6		; ditto
+</span>
+    <span class="enscript-keyword">ldo</span>    	-52(%sp),%r22		<span class="enscript-comment">; newly allocated stack area.
+    ldo    	-8(%r20),%r20		; Size -= 8
+</span>    <span class="enscript-keyword">comibf,&lt;,n</span>	0,%r20,L$L36
+L$L35
+    <span class="enscript-keyword">ldws,mb</span>	-4(0,%r21),%r19		<span class="enscript-comment">; while(size&gt;0)
+    addibf,&lt;=	-4,%r20,L$L35		;  { *(dest--) = *(src--); size-=4; }
+</span>    <span class="enscript-keyword">stws,ma</span>	%r19,-4(0,%r22)		<span class="enscript-comment">; &lt;delay slot&gt;
+
+</span>    <span class="enscript-keyword">.CALL</span> ARGW0=GR,ARGW1=GR,ARGW2=GR,ARGW3=GR
+L$L36
+    <span class="enscript-keyword">bl</span>     	objc_msgSend,2		<span class="enscript-comment">; Call method
+    nop
+</span>
+    <span class="enscript-keyword">ldw</span>		-20(0,%r3),%rp		<span class="enscript-comment">; restore RP
+    ldo		128(%r3),%sp		; restore SP (free variable space)
+</span>    <span class="enscript-keyword">bv</span>		0(%rp)			<span class="enscript-comment">; return to caller
+    .EXIT
+</span>    <span class="enscript-keyword">ldwm</span>	-128(0,%sp),%r3		<span class="enscript-comment">; restore frame pointer &amp; free stack
+    .PROCEND
+</span>
+<span class="enscript-comment">;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+</span><span class="enscript-comment">;;
+;; Lock routines
+</span><span class="enscript-comment">;;
+;;
+</span>
+<span class="enscript-comment">;;
+;; Lock routine
+</span><span class="enscript-comment">;;
+_objc_private_lock
+</span>    <span class="enscript-keyword">.PROC
+</span>    <span class="enscript-keyword">.CALLINFO</span> FRAME=0,NO_CALLS
+    <span class="enscript-keyword">.ENTRY
+</span>    <span class="enscript-keyword">addi</span>	0xf,%arg0,%arg0		<span class="enscript-comment">; add 15
+    depi	0,31,4,%arg0		; clear low byte to align on 16
+</span><span class="enscript-function-name">L_lockspin:</span>
+    <span class="enscript-keyword">ldcws</span>	0(0,%arg0),%r1		<span class="enscript-comment">; try to lock it
+    comib,=	0,%r1,L_lockspin	; if had 0, try again
+</span>    <span class="enscript-keyword">nop</span>					<span class="enscript-comment">; &lt;ds&gt;
+    .EXIT
+</span>    <span class="enscript-keyword">bv,n</span>	0(%rp)			<span class="enscript-comment">; return
+    .PROCEND
+</span><span class="enscript-comment">;;
+;; Unlock routine
+</span><span class="enscript-comment">;;
+_objc_private_unlock
+</span>    <span class="enscript-keyword">.PROC
+</span>    <span class="enscript-keyword">.CALLINFO</span> FRAME=0,NO_CALLS
+    <span class="enscript-keyword">.ENTRY
+</span>    <span class="enscript-keyword">addi</span>	0xf,%arg0,%arg0		<span class="enscript-comment">; add 15
+    depi	0,31,4,%arg0		; clear low byte to align on 16
+</span>    <span class="enscript-keyword">ldi</span>		1,%r1			<span class="enscript-comment">; get a one
+    bv		0(%rp)			; return
+</span>    <span class="enscript-keyword">.EXIT
+</span>    <span class="enscript-keyword">stw</span>		%r1,0(0,%arg0)		<span class="enscript-comment">; &lt;ds&gt; clear lock
+    .PROCEND
+</span>
+<span class="enscript-comment">;
+;
+</span><span class="enscript-comment">; Imports and Exports
+;
+</span><span class="enscript-comment">;
+
+</span>    <span class="enscript-keyword">.IMPORT</span> $global$,DATA
+    <span class="enscript-keyword">.IMPORT</span> $$dyncall,MILLICODE
+    <span class="enscript-keyword">.IMPORT</span> _objc_multithread_mask,DATA
+    <span class="enscript-keyword">.IMPORT</span> messageLock,DATA
+    <span class="enscript-keyword">.IMPORT</span> _class_lookupMethodAndLoadCache,CODE
+    <span class="enscript-keyword">.IMPORT</span> __objc_error,CODE
+
+    <span class="enscript-keyword">.EXPORT</span> objc_msgSend,        ENTRY,PRIV_LEV=3,ARGW0=GR,ARGW1=GR,ARGW2=GR,ARGW3=GR
+    <span class="enscript-keyword">.EXPORT</span> objc_msgSendv,       ENTRY,PRIV_LEV=3,ARGW0=GR,ARGW1=GR,ARGW2=GR,ARGW3=GR
+    <span class="enscript-keyword">.EXPORT</span> objc_msgSendSuper,   ENTRY,PRIV_LEV=3,ARGW0=GR,ARGW1=GR,ARGW2=GR,ARGW3=GR
+    <span class="enscript-keyword">.EXPORT</span> _objc_msgForward,    ENTRY,PRIV_LEV=3,ARGW0=GR,ARGW1=GR,ARGW2=GR,ARGW3=GR
+    <span class="enscript-keyword">.EXPORT</span> _objc_private_lock,  ENTRY,PRIV_LEV=3,ARGW0=GR
+    <span class="enscript-keyword">.EXPORT</span> _objc_private_unlock,ENTRY,PRIV_LEV=3,ARGW0=GR
+
+</pre>
+<hr />
+</body></html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>objc-block-trampolines.h</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">objc-block-trampolines.h&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="objc-block-trampolines.h">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+<span class="enscript-comment">/*
+ * Copyright (c) 2018 Apple Inc.  All Rights Reserved.
+ * 
+ * @APPLE_LICENSE_HEADER_START@
+ * 
+ * This file contains Original Code and/or Modifications of Original Code
+ * as defined in and that are subject to the Apple Public Source License
+ * Version 2.0 (the 'License'). You may not use this file except in
+ * compliance with the License. Please obtain a copy of the License at
+ * <a href="http://www.opensource.apple.com/apsl/">http://www.opensource.apple.com/apsl/</a> and read it before using this
+ * file.
+ * 
+ * The Original Code and all software distributed under the License are
+ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
+ * Please see the License for the specific language governing rights and
+ * limitations under the License.
+ * 
+ * @APPLE_LICENSE_HEADER_END@
+ */</span>
+
+
+#<span class="enscript-reference">ifndef</span> <span class="enscript-variable-name">_OBJC_TRAMPOLINES_H</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">_OBJC_TRAMPOLINES_H</span>
+
+<span class="enscript-comment">/* 
+ * WARNING  DANGER  HAZARD  BEWARE  EEK
+ * 
+ * Everything in this file is for Apple Internal use only.
+ * These will change in arbitrary OS updates and in unpredictable ways.
+ * When your program breaks, you get to keep both pieces.
+ */</span>
+
+<span class="enscript-comment">/*
+ * objc-block-trampolines.h: Symbols for IMP block trampolines
+ */</span>
+
+#<span class="enscript-reference">include</span> <span class="enscript-string">&lt;objc/objc-api.h&gt;</span>
+
+OBJC_EXPORT <span class="enscript-type">const</span> <span class="enscript-type">char</span> _objc_blockTrampolineImpl
+    OBJC_AVAILABLE(10.14, 12.0, 12.0, 5.0, 3.0);
+
+OBJC_EXPORT <span class="enscript-type">const</span> <span class="enscript-type">char</span> _objc_blockTrampolineStart
+    OBJC_AVAILABLE(10.14, 12.0, 12.0, 5.0, 3.0);
+
+OBJC_EXPORT <span class="enscript-type">const</span> <span class="enscript-type">char</span> _objc_blockTrampolineLast
+    OBJC_AVAILABLE(10.14, 12.0, 12.0, 5.0, 3.0);
+
+
+OBJC_EXPORT <span class="enscript-type">const</span> <span class="enscript-type">char</span> _objc_blockTrampolineImpl_stret
+<span class="enscript-function-name">OBJC_AVAILABLE</span>(10.14, 12.0, 12.0, 5.0, 3.0)
+    OBJC_ARM64_UNAVAILABLE;
+
+OBJC_EXPORT <span class="enscript-type">const</span> <span class="enscript-type">char</span> _objc_blockTrampolineStart_stret
+<span class="enscript-function-name">OBJC_AVAILABLE</span>(10.14, 12.0, 12.0, 5.0, 3.0)
+    OBJC_ARM64_UNAVAILABLE;
+
+OBJC_EXPORT <span class="enscript-type">const</span> <span class="enscript-type">char</span> _objc_blockTrampolineLast_stret
+<span class="enscript-function-name">OBJC_AVAILABLE</span>(10.14, 12.0, 12.0, 5.0, 3.0)
+    OBJC_ARM64_UNAVAILABLE;
+
+#<span class="enscript-reference">endif</span>
+</pre>
+<hr />
+</body></html>

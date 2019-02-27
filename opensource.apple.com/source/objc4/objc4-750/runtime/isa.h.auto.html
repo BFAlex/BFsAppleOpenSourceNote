@@ -1,0 +1,159 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>isa.h</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">isa.h&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="isa.h">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+<span class="enscript-comment">/*
+ * @APPLE_LICENSE_HEADER_START@
+ * 
+ * Copyright (c) 2018 Apple Inc.  All Rights Reserved.
+ * 
+ * This file contains Original Code and/or Modifications of Original Code
+ * as defined in and that are subject to the Apple Public Source License
+ * Version 2.0 (the 'License'). You may not use this file except in
+ * compliance with the License. Please obtain a copy of the License at
+ * <a href="http://www.opensource.apple.com/apsl/">http://www.opensource.apple.com/apsl/</a> and read it before using this
+ * file.
+ * 
+ * The Original Code and all software distributed under the License are
+ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
+ * Please see the License for the specific language governing rights and
+ * limitations under the License.
+ * 
+ * @APPLE_LICENSE_HEADER_END@
+ */</span>
+<span class="enscript-comment">/********************************************************************
+ * 
+ *  isa.h - Definitions of isa fields for C and assembly code.
+ *
+ ********************************************************************/</span>
+
+#<span class="enscript-reference">ifndef</span> <span class="enscript-variable-name">_OBJC_ISA_H_</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">_OBJC_ISA_H_</span>
+
+#<span class="enscript-reference">include</span> <span class="enscript-string">&quot;objc-config.h&quot;</span>
+
+
+#<span class="enscript-reference">if</span> (!<span class="enscript-variable-name">SUPPORT_NONPOINTER_ISA</span> &amp;&amp; !<span class="enscript-variable-name">SUPPORT_PACKED_ISA</span> &amp;&amp; !<span class="enscript-variable-name">SUPPORT_INDEXED_ISA</span>) ||\
+    ( SUPPORT_NONPOINTER_ISA &amp;&amp;  SUPPORT_PACKED_ISA &amp;&amp; !SUPPORT_INDEXED_ISA) ||\
+    ( SUPPORT_NONPOINTER_ISA &amp;&amp; !SUPPORT_PACKED_ISA &amp;&amp;  SUPPORT_INDEXED_ISA)
+    <span class="enscript-comment">// good config
+</span>#<span class="enscript-reference">else</span>
+#   <span class="enscript-reference">error</span> <span class="enscript-variable-name">bad</span> <span class="enscript-variable-name">config</span>
+#<span class="enscript-reference">endif</span>
+
+
+#<span class="enscript-reference">if</span> <span class="enscript-variable-name">SUPPORT_PACKED_ISA</span>
+
+    <span class="enscript-comment">// extra_rc must be the MSB-most field (so it matches carry/overflow flags)
+</span>    <span class="enscript-comment">// nonpointer must be the LSB (fixme or get rid of it)
+</span>    <span class="enscript-comment">// shiftcls must occupy the same bits that a real class pointer would
+</span>    <span class="enscript-comment">// bits + RC_ONE is equivalent to extra_rc + 1
+</span>    <span class="enscript-comment">// RC_HALF is the high bit of extra_rc (i.e. half of its range)
+</span>
+    <span class="enscript-comment">// future expansion:
+</span>    <span class="enscript-comment">// uintptr_t fast_rr : 1;     // no r/r overrides
+</span>    <span class="enscript-comment">// uintptr_t lock : 2;        // lock for atomic property, @synch
+</span>    <span class="enscript-comment">// uintptr_t extraBytes : 1;  // allocated with extra bytes
+</span>
+# <span class="enscript-reference">if</span> <span class="enscript-variable-name">__arm64__</span>
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_MASK</span>        0x0000000ffffffff8ULL
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_MAGIC_MASK</span>  0x000003f000000001ULL
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_MAGIC_VALUE</span> 0x000001a000000001ULL
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_BITFIELD</span>                                                      \
+      uintptr_t nonpointer        : 1;                                       \
+      uintptr_t has_assoc         : 1;                                       \
+      uintptr_t has_cxx_dtor      : 1;                                       \
+      uintptr_t shiftcls          : 33; <span class="enscript-comment">/*MACH_VM_MAX_ADDRESS 0x1000000000*/</span> \
+      uintptr_t magic             : 6;                                       \
+      uintptr_t weakly_referenced : 1;                                       \
+      uintptr_t deallocating      : 1;                                       \
+      uintptr_t has_sidetable_rc  : 1;                                       \
+      uintptr_t extra_rc          : 19
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">RC_ONE</span>   (1ULL&lt;&lt;45)
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">RC_HALF</span>  (1ULL&lt;&lt;18)
+
+# <span class="enscript-reference">elif</span> <span class="enscript-variable-name">__x86_64__</span>
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_MASK</span>        0x00007ffffffffff8ULL
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_MAGIC_MASK</span>  0x001f800000000001ULL
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_MAGIC_VALUE</span> 0x001d800000000001ULL
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_BITFIELD</span>                                                        \
+      uintptr_t nonpointer        : 1;                                         \
+      uintptr_t has_assoc         : 1;                                         \
+      uintptr_t has_cxx_dtor      : 1;                                         \
+      uintptr_t shiftcls          : 44; <span class="enscript-comment">/*MACH_VM_MAX_ADDRESS 0x7fffffe00000*/</span> \
+      uintptr_t magic             : 6;                                         \
+      uintptr_t weakly_referenced : 1;                                         \
+      uintptr_t deallocating      : 1;                                         \
+      uintptr_t has_sidetable_rc  : 1;                                         \
+      uintptr_t extra_rc          : 8
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">RC_ONE</span>   (1ULL&lt;&lt;56)
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">RC_HALF</span>  (1ULL&lt;&lt;7)
+
+# <span class="enscript-reference">else</span>
+#   <span class="enscript-reference">error</span> <span class="enscript-variable-name">unknown</span> <span class="enscript-variable-name">architecture</span> <span class="enscript-variable-name">for</span> <span class="enscript-variable-name">packed</span> <span class="enscript-variable-name">isa</span>
+# <span class="enscript-reference">endif</span>
+
+<span class="enscript-comment">// SUPPORT_PACKED_ISA
+</span>#<span class="enscript-reference">endif</span>
+
+
+#<span class="enscript-reference">if</span> <span class="enscript-variable-name">SUPPORT_INDEXED_ISA</span>
+
+# <span class="enscript-reference">if</span>  <span class="enscript-variable-name">__ARM_ARCH_7K__</span> &gt;= 2  ||  (<span class="enscript-variable-name">__arm64__</span> &amp;&amp; !<span class="enscript-variable-name">__LP64__</span>)
+    <span class="enscript-comment">// armv7k or arm64_32
+</span>
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_INDEX_IS_NPI_BIT</span>  0
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_INDEX_IS_NPI_MASK</span> 0x00000001
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_INDEX_MASK</span>        0x0001FFFC
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_INDEX_SHIFT</span>       2
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_INDEX_BITS</span>        15
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_INDEX_COUNT</span>       (1 &lt;&lt; ISA_INDEX_BITS)
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_INDEX_MAGIC_MASK</span>  0x001E0001
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_INDEX_MAGIC_VALUE</span> 0x001C0001
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">ISA_BITFIELD</span>                         \
+      uintptr_t nonpointer        : 1;          \
+      uintptr_t has_assoc         : 1;          \
+      uintptr_t indexcls          : 15;         \
+      uintptr_t magic             : 4;          \
+      uintptr_t has_cxx_dtor      : 1;          \
+      uintptr_t weakly_referenced : 1;          \
+      uintptr_t deallocating      : 1;          \
+      uintptr_t has_sidetable_rc  : 1;          \
+      uintptr_t extra_rc          : 7
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">RC_ONE</span>   (1ULL&lt;&lt;25)
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">RC_HALF</span>  (1ULL&lt;&lt;6)
+
+# <span class="enscript-reference">else</span>
+#   <span class="enscript-reference">error</span> <span class="enscript-variable-name">unknown</span> <span class="enscript-variable-name">architecture</span> <span class="enscript-variable-name">for</span> <span class="enscript-variable-name">indexed</span> <span class="enscript-variable-name">isa</span>
+# <span class="enscript-reference">endif</span>
+
+<span class="enscript-comment">// SUPPORT_INDEXED_ISA
+</span>#<span class="enscript-reference">endif</span>
+
+
+<span class="enscript-comment">// _OBJC_ISA_H_
+</span>#<span class="enscript-reference">endif</span>
+</pre>
+<hr />
+</body></html>

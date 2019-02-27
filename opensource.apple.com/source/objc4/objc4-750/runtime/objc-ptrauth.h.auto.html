@@ -1,0 +1,109 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>objc-ptrauth.h</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">objc-ptrauth.h&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="objc-ptrauth.h">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+<span class="enscript-comment">/*
+ * Copyright (c) 2017 Apple Inc.  All Rights Reserved.
+ * 
+ * @APPLE_LICENSE_HEADER_START@
+ * 
+ * This file contains Original Code and/or Modifications of Original Code
+ * as defined in and that are subject to the Apple Public Source License
+ * Version 2.0 (the 'License'). You may not use this file except in
+ * compliance with the License. Please obtain a copy of the License at
+ * <a href="http://www.opensource.apple.com/apsl/">http://www.opensource.apple.com/apsl/</a> and read it before using this
+ * file.
+ * 
+ * The Original Code and all software distributed under the License are
+ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
+ * Please see the License for the specific language governing rights and
+ * limitations under the License.
+ * 
+ * @APPLE_LICENSE_HEADER_END@
+ */</span>
+
+#<span class="enscript-reference">ifndef</span> <span class="enscript-variable-name">_OBJC_PTRAUTH_H_</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">_OBJC_PTRAUTH_H_</span>
+
+#<span class="enscript-reference">include</span> <span class="enscript-string">&lt;objc/objc.h&gt;</span>
+
+<span class="enscript-comment">// On some architectures, method lists and method caches store signed IMPs.
+</span>
+<span class="enscript-comment">// StorageSignedFunctionPointer is declared by libclosure.
+</span>#<span class="enscript-reference">include</span> <span class="enscript-string">&lt;Block_private.h&gt;</span>
+
+<span class="enscript-comment">// fixme simply include ptrauth.h once all build trains have it
+</span>#<span class="enscript-reference">if</span> <span class="enscript-variable-name">__has_include</span> (&lt;<span class="enscript-variable-name">ptrauth</span>.<span class="enscript-variable-name">h</span>&gt;)
+#<span class="enscript-reference">include</span> <span class="enscript-string">&lt;ptrauth.h&gt;</span>
+#<span class="enscript-reference">else</span>
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">ptrauth_strip</span>(__value, __key) __value
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">ptrauth_blend_discriminator</span>(__pointer, __integer) ((uintptr_t)0)
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">ptrauth_sign_constant</span>(__value, __key, __data) __value
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">ptrauth_sign_unauthenticated</span>(__value, __key, __data) __value
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">ptrauth_auth_and_resign</span>(__value, __old_key, __old_data, __new_key, __new_data) __value
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">ptrauth_auth_function</span>(__value, __old_key, __old_data) __value
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">ptrauth_auth_data</span>(__value, __old_key, __old_data) __value
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">ptrauth_string_discriminator</span>(__string) ((int)0)
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">ptrauth_sign_generic_data</span>(__value, __data) ((ptrauth_generic_signature_t)0)
+
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_function_pointer</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_return_address</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_block_invocation_pointer</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_block_copy_helper</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_block_destroy_helper</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_block_byref_copy_helper</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_block_byref_destroy_helper</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_objc_method_list_imp</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_cxx_vtable_pointer</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_cxx_vtt_vtable_pointer</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">__ptrauth_swift_heap_object_destructor</span>
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">__ptrauth_cxx_virtual_function_pointer</span>(__declkey)
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">__ptrauth_swift_function_pointer</span>(__typekey)
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">__ptrauth_swift_class_method_pointer</span>(__declkey)
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">__ptrauth_swift_protocol_witness_function_pointer</span>(__declkey)
+#<span class="enscript-reference">define</span> <span class="enscript-function-name">__ptrauth_swift_value_witness_function_pointer</span>(__key)
+#<span class="enscript-reference">endif</span>
+
+
+#<span class="enscript-reference">if</span> <span class="enscript-variable-name">__has_feature</span>(<span class="enscript-variable-name">ptrauth_calls</span>)
+
+<span class="enscript-comment">// Method lists use process-independent signature for compatibility.
+</span><span class="enscript-comment">// Method caches use process-dependent signature for extra protection.
+</span><span class="enscript-comment">//   (fixme not yet __ptrauth(...) because of `stp` inline asm in objc-cache.mm)
+</span>using MethodListIMP = IMP __ptrauth_objc_method_list_imp;
+using MethodCacheIMP =
+    StorageSignedFunctionPointer&lt;IMP, ptrauth_key_process_dependent_code&gt;;
+
+#<span class="enscript-reference">else</span>
+
+using MethodListIMP = IMP;
+using MethodCacheIMP = IMP;
+
+#<span class="enscript-reference">endif</span>
+
+<span class="enscript-comment">// _OBJC_PTRAUTH_H_
+</span>#<span class="enscript-reference">endif</span>
+</pre>
+<hr />
+</body></html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>objc-msg-sparc-pdo.s</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">objc-msg-sparc-pdo.s&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="objc-msg-sparc-pdo.s">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+/*
+ <span class="enscript-keyword">*</span> Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_START@
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> Portions Copyright (c) 1999 Apple Computer, Inc.  All Rights
+ <span class="enscript-keyword">*</span> Reserved.  This file contains Original Code and/or Modifications of
+ <span class="enscript-keyword">*</span> Original Code as defined in and that are subject to the Apple Public
+ <span class="enscript-keyword">*</span> Source License Version 1.1 (the <span class="enscript-string">&quot;License&quot;</span>).  You may not use this file
+ <span class="enscript-keyword">*</span> except in compliance with the License.  Please obtain a copy of the
+ <span class="enscript-keyword">*</span> License at <a href="http://www.apple.com/publicsource">http://www.apple.com/publicsource</a> and read it before using
+ <span class="enscript-keyword">*</span> this file.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> The Original Code and all software distributed under the License are
+ <span class="enscript-keyword">*</span> distributed on an <span class="enscript-string">&quot;AS IS&quot;</span> basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ <span class="enscript-keyword">*</span> EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ <span class="enscript-keyword">*</span> INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ <span class="enscript-keyword">*</span> FITNESS FOR A PARTICULAR PURPOSE OR NON- INFRINGEMENT.  Please see the
+ <span class="enscript-keyword">*</span> License for the specific language governing rights and limitations
+ <span class="enscript-keyword">*</span> under the License.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_END@
+ <span class="enscript-keyword">*/
+</span>/*
+ <span class="enscript-keyword">*</span>	objc-msg-sparc.s
+ <span class="enscript-keyword">*</span>	Copyright 1994 NeXT, Inc.
+ <span class="enscript-keyword">*</span>	CREDITS: John Atkinson, Brad Taylor, Kresten Thorup,
+ <span class="enscript-keyword">*</span>		 Gordie Freedman, and everybody else and their dog too !
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span>      id objc_msgSend(id self, SEL sel, ...) 
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span>      Implement [anObject aSelector] 
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> 	NOTE: objc_msgSend() is defined as a C function in
+ <span class="enscript-keyword">*</span>            objc-dispatch.c.  This code is derived from 
+ <span class="enscript-keyword">*</span>            compiler generated assembly code. 
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*/
+</span>
+#define CLEARLOW22	0xffc00000	/* mask to clear low 22 bits */
+
+#ifndef __svr4__
+#define _class_lookupMethodAndLoadCache __class_lookupMethodAndLoadCache
+#define objc_msgSend _objc_msgSend
+#define objc_msgSendv _objc_msgSendv
+#define objc_msgSendSuper _objc_msgSendSuper
+#define _objc_msgForward __objc_msgForward
+#define OBJC_METH_VAR_NAME_FORWARD _OBJC_METH_VAR_NAME_FORWARD
+#define  _objc_error __objc_error
+#define  _objc_multithread_mask __objc_multithread_mask
+#define  messageLock _messageLock
+#define  _objc_private_lock __objc_private_lock
+#define  _objc_private_unlock __objc_private_unlock
+#endif
+
+.text
+	<span class="enscript-keyword">.align</span> 4
+	<span class="enscript-keyword">.global</span> objc_msgSend
+	<span class="enscript-keyword">.type</span> objc_msgSend,#function
+	<span class="enscript-keyword">.proc</span> 0110
+//
+// ObjC message send:	
+// Arguments:	%i0   - receiver (self)
+//		%i1   - selector
+//		%i2.. - arguments
+
+<span class="enscript-function-name">objc_msgSend:</span>
+	<span class="enscript-keyword">save</span>	%sp,-96,%sp         // Save the stack
+<span class="enscript-function-name">.Ls1:</span>
+	<span class="enscript-keyword">call</span> .Ls2
+	<span class="enscript-keyword">nop
+</span><span class="enscript-function-name">.Ls2:</span>
+	<span class="enscript-keyword">sethi</span> %hi(_GLOBAL_OFFSET_TABLE_-(.Ls1-.)),%l6
+	<span class="enscript-keyword">or</span> %l6,%lo(_GLOBAL_OFFSET_TABLE_-(.Ls1-.)),%l6
+	<span class="enscript-keyword">add</span> %l6,%o7,%l6
+
+	<span class="enscript-keyword">tst</span>	%i0                 // If (self == nil) 
+	<span class="enscript-keyword">bz</span>	.L_receiver_is_nil   // Then goto nil return
+//	sethi	%hi(_objc_multithread_mask),%l2
+//	ld	[%l2+%lo(_objc_multithread_mask)],%l2
+	<span class="enscript-keyword">set</span> _objc_multithread_mask,%l2
+	<span class="enscript-keyword">ld</span> [%l6+%l2],%l2
+	<span class="enscript-keyword">ld</span> [%l2],%l2
+	<span class="enscript-keyword">
+</span>	<span class="enscript-keyword">tst</span>	%l2     	// If zero 
+	<span class="enscript-keyword">bz</span>	.L_lock          // Then multithreaded
+	<span class="enscript-keyword">ld</span>	[%i0],%l1	// &lt;ds&gt; cls = self-&gt;isa
+	<span class="enscript-keyword">ld</span>	[%l1+32],%o0    // cache   = cls-&gt;cache
+<span class="enscript-function-name">.L_continue:</span>
+	<span class="enscript-keyword">ld</span> [%o0],%o4            // mask    = cache-&gt;mask  
+	<span class="enscript-keyword">add</span> %o0,8,%o3           // buckets = cache-&gt;buckets    
+	<span class="enscript-keyword">and</span> %i1,%o4,%o2		// index   = selector &amp; mask   
+<span class="enscript-function-name">.L_loop:</span>
+	<span class="enscript-keyword">sll</span> %o2,2,%o1           // %o1 &lt;= index &lt;&lt; 2           
+	<span class="enscript-keyword">ld</span> [%o3+%o1],%o0        // %o0 &lt;= buckets[index]       
+	<span class="enscript-keyword">cmp</span> %o0,0               // if (buckets[index] == 0)
+	<span class="enscript-keyword">be,a</span> .L_cacheMiss        // then goto cacheMiss  
+	<span class="enscript-keyword">mov</span> %l1,%o0             // &lt;ds&gt; Class goes into arg0
+	<span class="enscript-keyword">ld</span> [%o0],%l3            // %l3 &lt;= buckets[index]-&gt;method_name
+	<span class="enscript-keyword">cmp</span> %l3,%i1             // if (method_name == sel)     
+	<span class="enscript-keyword">be,a</span> .L_cacheHit         // goto cacheHit             
+	<span class="enscript-keyword">ld</span> [%o0+8],%o0          // Fish out IMP address        
+ 	<span class="enscript-keyword">add</span> %o2,1,%o2           // index++                      
+	<span class="enscript-keyword">b</span> .L_loop                // Loop
+	<span class="enscript-keyword">and</span> %o2,%o4,%o2         // &lt;ds&gt; index &amp;= mask          
+<span class="enscript-function-name">.L_cacheMiss:</span>
+	<span class="enscript-keyword">call</span> _class_lookupMethodAndLoadCache,0
+	<span class="enscript-keyword">mov</span> %i1,%o1             // &lt;ds&gt; Selector goes into arg1
+<span class="enscript-function-name">.L_cacheHit:</span>
+	<span class="enscript-keyword">tst</span>	%l2     	// If mutithreaded is zero 
+	<span class="enscript-keyword">bz,a</span>	.L_unlocked      // Then multithreaded, so unlock
+	<span class="enscript-keyword">swap</span>	[%l7],%g0       // &lt;ds&gt; in the delay slot!
+<span class="enscript-function-name">.L_unlocked:</span>
+	<span class="enscript-keyword">jmp</span> %o0                 // Go to method imp
+	<span class="enscript-keyword">restore</span>                 // &lt;ds&gt; restore the stack
+<span class="enscript-function-name">.L_receiver_is_nil:</span>
+	<span class="enscript-keyword">ld</span> [%i7+8],%g3		// load instruction 
+	<span class="enscript-keyword">sethi</span> %hi(CLEARLOW22),%g2 // mask off low 22 bits 
+	<span class="enscript-keyword">andcc</span> %g3,%g2,%g0	// if 0, then its an UNIMP inst 
+	<span class="enscript-keyword">bz</span> .L_struct_returnSend  // and we will return a structure 
+	<span class="enscript-keyword">mov</span> 0,%i1		// Second half of long long ret is 0 
+        <span class="enscript-keyword">ret</span>                     // Get back, JoJo                      
+	<span class="enscript-keyword">restore</span>                 // &lt;ds&gt; 
+<span class="enscript-function-name">.L_struct_returnSend:</span>
+	<span class="enscript-keyword">jmp</span> %i7 + 12		// convention for returning structs 
+	<span class="enscript-keyword">restore</span>                 // &lt;ds&gt;
+<span class="enscript-function-name">.L_lock:</span>
+	<span class="enscript-keyword">set</span>	(messageLock),%l7 // get the lock addr
+	<span class="enscript-keyword">ld</span> [%l6+%l7],%l7
+	<span class="enscript-keyword">set</span>	1,%l3		// lock code (1)
+<span class="enscript-function-name">.L_lockspin:</span>
+	<span class="enscript-keyword">swap</span>	[%l7],%l3	// try to set the lock
+	<span class="enscript-keyword">tst</span>	%l3		// if lock was already set
+	<span class="enscript-keyword">bnz</span>	.L_lockspin	// try again
+	<span class="enscript-keyword">set</span>	1,%l3		// &lt;ds&gt; lock code (1)
+	<span class="enscript-keyword">b</span>	.L_continue      // Head back to mainline
+	<span class="enscript-keyword">ld</span>	[%l1+32],%o0    // &lt;ds&gt; cache = cls-&gt;cache
+	<span class="enscript-keyword">
+</span>/* 
+ <span class="enscript-keyword">*</span>      Implement [super aSelector] 
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span>      id objc_msgSendSuper(struct objc_super *caller, SEL sel, ...)
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> 	NOTE: objc_msgSendSuper() is defined as a C function in
+ <span class="enscript-keyword">*</span>            objc-dispatch.c.  This code is derived from 
+ <span class="enscript-keyword">*</span>            compiler generated assembly code. 
+ <span class="enscript-keyword">*/
+</span>	<span class="enscript-keyword">.align</span> 4
+	<span class="enscript-keyword">.global</span> objc_msgSendSuper
+	<span class="enscript-keyword">.type</span> objc_msgSendSuper,#function
+	<span class="enscript-keyword">.proc</span>	0110
+<span class="enscript-function-name">objc_msgSendSuper:</span>
+	<span class="enscript-keyword">//</span> receiver and cls won't be nil on entry, can skip check
+	<span class="enscript-keyword">save</span> %sp,-112,%sp
+<span class="enscript-function-name">.Lsu1:</span>
+	<span class="enscript-keyword">call</span> .Lsu2
+	<span class="enscript-keyword">nop
+</span><span class="enscript-function-name">.Lsu2:</span>
+	<span class="enscript-keyword">sethi</span> %hi(_GLOBAL_OFFSET_TABLE_-(.Lsu1-.)),%l6
+	<span class="enscript-keyword">or</span> %l6,%lo(_GLOBAL_OFFSET_TABLE_-(.Lsu1-.)),%l6
+	<span class="enscript-keyword">add</span> %l6,%o7,%l6
+
+//	sethi	%hi(_objc_multithread_mask),%l2
+//	ld	[%l2+%lo(_objc_multithread_mask)],%l2
+	<span class="enscript-keyword">set</span> _objc_multithread_mask,%l2
+	<span class="enscript-keyword">ld</span> [%l6+%l2],%l2
+	<span class="enscript-keyword">ld</span> [%l2],%l2
+	<span class="enscript-keyword">tst</span>	%l2     	  // If zero 
+	<span class="enscript-keyword">bz</span>	.L_super_lock      // Then multithreaded
+	<span class="enscript-keyword">ld</span> [%i0],%l1              // &lt;ds&gt; Put caller-&gt;receiver in %l1
+	<span class="enscript-keyword">st</span> %l1,[%fp+68]           // Save receiver for later
+<span class="enscript-function-name">.L_super_continue:</span>
+	<span class="enscript-keyword">ld</span> [%i0+4],%o3            // Put caller-&gt;cls into %o3
+	<span class="enscript-keyword">ld</span> [%o3+32],%o0           // cache   = cls-&gt;cache          
+	<span class="enscript-keyword">ld</span> [%o0],%o2              // mask    = cls-&gt;cache-&gt;mask    
+	<span class="enscript-keyword">add</span> %o0,8,%l0             // buckets = cache-&gt;buckets      
+	<span class="enscript-keyword">and</span> %i1,%o2,%i0           // index   = selector &amp; mask     
+<span class="enscript-function-name">.L_super_loop:</span>
+	<span class="enscript-keyword">sll</span> %i0,2,%o0             // Adjust to word index
+	<span class="enscript-keyword">ld</span> [%l0+%o0],%o1          // method = buckets[index]
+	<span class="enscript-keyword">cmp</span> %o1,0                 // if (method == NULL) ...
+	<span class="enscript-keyword">be</span> .L_super_cacheMiss      // ... then have a cache miss
+	<span class="enscript-keyword">mov</span> %o3,%o0               // &lt;ds&gt; Class arg for LoadCache
+	<span class="enscript-keyword">ld</span> [%o1],%o0              // Method name into o0
+	<span class="enscript-keyword">cmp</span> %o0,%i1               // Compare method name to one we want
+	<span class="enscript-keyword">be</span> .L_super_cacheHit       // Equal, got a hit
+	<span class="enscript-keyword">ld</span> [%o1+8],%g1            // &lt;ds&gt; Get implementation address
+	<span class="enscript-keyword">add</span> %i0,1,%i0             // Increment index
+	<span class="enscript-keyword">b</span> .L_super_loop            // Loop again
+	<span class="enscript-keyword">and</span> %i0,%o2,%i0           // &lt;ds&gt; and with mask
+<span class="enscript-function-name">.L_super_cacheMiss:</span>
+	<span class="enscript-keyword">call</span> _class_lookupMethodAndLoadCache,0
+	<span class="enscript-keyword">mov</span> %i1,%o1               // &lt;ds&gt; Selector into arg1
+	<span class="enscript-keyword">mov</span> %o0,%g1               // Save result from LoadCache
+<span class="enscript-function-name">.L_super_cacheHit:</span>
+	<span class="enscript-keyword">tst</span>	%l2     	  // If multithread is zero 
+	<span class="enscript-keyword">bz,a</span>	.L_super_unlocked  // Then multithreaded, so unlock
+	<span class="enscript-keyword">swap</span>	[%l7],%g0         // &lt;ds&gt; in the delay slot!
+<span class="enscript-function-name">.L_super_unlocked:</span>
+	<span class="enscript-keyword">restore</span>                   // Restore the stack
+	<span class="enscript-keyword">jmp</span> %g1                   // Go to the method
+	<span class="enscript-keyword">ld</span> [%sp+68],%o0           // &lt;ds&gt; Put receiver in arg0
+<span class="enscript-function-name">.L_super_lock:</span>
+	<span class="enscript-keyword">set</span>	(messageLock),%l7 // get the lock addr
+	<span class="enscript-keyword">ld</span> [%l6+%l7],%l7
+	<span class="enscript-keyword">set</span>	1,%l3		// lock code (1)
+<span class="enscript-function-name">.L_super_lockspin:</span>
+	<span class="enscript-keyword">swap</span>	[%l7],%l3	// try to set the lock
+	<span class="enscript-keyword">tst</span>	%l3		// if lock was already set
+	<span class="enscript-keyword">bnz</span>	.L_super_lockspin// try again
+	<span class="enscript-keyword">set</span>	1,%l3		// &lt;ds&gt; lock code (1)
+	<span class="enscript-keyword">b</span>	.L_super_continue// Head back to mainline
+	<span class="enscript-keyword">st</span> %l1,[%fp+68]         // &lt;ds&gt; Save receiver for later
+
+//
+//      id __objc_msgForward(id self, SEL sel, ...)
+//
+	<span class="enscript-keyword">.align</span> 4
+	<span class="enscript-keyword">.global</span> _objc_msgForward
+	<span class="enscript-keyword">.type</span> _objc_msgForward,#function
+	<span class="enscript-keyword">.proc</span>	0110
+<span class="enscript-function-name">_objc_msgForward:</span>
+	<span class="enscript-keyword">save</span> %sp,-96,%sp
+<span class="enscript-function-name">.Lmf1:</span>
+	<span class="enscript-keyword">call</span> .Lmf2
+	<span class="enscript-keyword">nop
+</span><span class="enscript-function-name">.Lmf2:</span>
+	<span class="enscript-keyword">sethi</span> %hi(_GLOBAL_OFFSET_TABLE_-(.Lmf1-.)),%l6
+	<span class="enscript-keyword">or</span> %l6,%lo(_GLOBAL_OFFSET_TABLE_-(.Lmf1-.)),%l6
+	<span class="enscript-keyword">add</span> %l6,%o7,%l6
+
+//	sethi %hi(OBJC_METH_VAR_NAME_FORWARD),%g2
+//	or %g2,%lo(OBJC_METH_VAR_NAME_FORWARD),%g2
+	<span class="enscript-keyword">set</span> OBJC_METH_VAR_NAME_FORWARD,%g2
+	<span class="enscript-keyword">ld</span> [%l6+%g2],%g2
+
+	<span class="enscript-keyword">cmp</span> %g2,%i1             // if (sel==@selector(forward::)) 
+	<span class="enscript-keyword">be</span> .LERROR               //   goto ERROR                   
+	<span class="enscript-keyword">mov</span> %i1,%o2             // &lt;ds&gt; Put selector into %o2
+	<span class="enscript-keyword">add</span> %fp,68,%g1          // Pointer to %i3 stack homing area 
+	<span class="enscript-keyword">st</span> %i0,[%g1]            // Store first 6 parameters onto stack
+	<span class="enscript-keyword">st</span> %i1,[%g1+4]
+	<span class="enscript-keyword">st</span> %i2,[%g1+8]
+	<span class="enscript-keyword">st</span> %i3,[%g1+12]
+	<span class="enscript-keyword">st</span> %i4,[%g1+16]
+	<span class="enscript-keyword">st</span> %i5,[%g1+20]
+	<span class="enscript-keyword">mov</span> %g2,%o1             // Put forward:: into %o1
+	<span class="enscript-keyword">mov</span> %g1,%o3             // Set margv vector as 4th parm
+
+	<span class="enscript-keyword">ld</span> [%i7+8],%g3			// load instruction 
+	<span class="enscript-keyword">sethi</span> %hi(CLEARLOW22),%g2	// mask off low 22 bits 
+	<span class="enscript-keyword">andcc</span> %g3,%g2,%g0		// if 0, then its an UNIMP inst 
+	<span class="enscript-keyword">be</span> .Lstruct_returnForward	// and we will return a structure 
+	<span class="enscript-keyword">nop</span>				// fill me in later 
+
+	<span class="enscript-keyword">//</span> No structure is returned
+	<span class="enscript-keyword">call</span> objc_msgSend,0	// send the message 
+	<span class="enscript-keyword">mov</span> %i0,%o0             // &lt;ds&gt; Set self 
+	<span class="enscript-keyword">mov</span> %o0,%i0		// Restore return parameter 
+	<span class="enscript-keyword">ret</span>			// Return
+	<span class="enscript-keyword">restore</span> %o1,0,%o1	// In case long long returned
+
+<span class="enscript-function-name">.Lstruct_returnForward:</span>
+	<span class="enscript-keyword">ld</span> [%fp+64],%g2		// get return struct ptr 
+	<span class="enscript-keyword">st</span> %g2,[%sp+64]		// save return struct pointer 
+	<span class="enscript-keyword">call</span> objc_msgSend,0	// send the message 
+	<span class="enscript-keyword">mov</span> %i0,%o0             // Set self
+	<span class="enscript-keyword">unimp</span> 0			// let 0 mean size = unknown 
+	<span class="enscript-keyword">jmp</span> %i7 + 12		// convention for returning structs 
+	<span class="enscript-keyword">restore
+</span><span class="enscript-function-name">.LERROR:</span>                         // Error: Does not respond to sel 
+	<span class="enscript-keyword">sethi</span> %hi(.LC0), %o1
+	<span class="enscript-keyword">or</span> %o1,%lo(.LC0),%o1
+	<span class="enscript-keyword">b</span> _objc_error           // __objc_error never returns,    
+	<span class="enscript-keyword">nop
+</span><span class="enscript-function-name">.LC0:</span>
+	<span class="enscript-keyword">.ascii</span> <span class="enscript-string">&quot;Does not recognize selector %s\0&quot;</span>
+	<span class="enscript-keyword">.align</span> 4
+
+//
+//	id objc_msgSendv(id self, SEL sel, unsigned size, marg_list args)
+//
+	<span class="enscript-keyword">.align</span> 4
+	<span class="enscript-keyword">.global</span> objc_msgSendv
+	<span class="enscript-keyword">.type</span> objc_msgSendv,#function
+<span class="enscript-function-name">objc_msgSendv:</span>
+	<span class="enscript-keyword">add</span> %g0,-96,%g1		// Get min stack size + 4 (rounded by 8)
+	<span class="enscript-keyword">subcc</span> %o2,28,%g2	// Get size of non reg params + 4
+	<span class="enscript-keyword">ble</span> .Lsave_stack		// None or 1, so skip making stack larger
+	<span class="enscript-keyword">sub</span> %g1,%g2,%g2		// Add local size to minimum stack
+	<span class="enscript-keyword">and</span> %g2,-8,%g1		// Need to round to 8 bit boundary
+<span class="enscript-function-name">.Lsave_stack:</span>
+	<span class="enscript-keyword">save</span> %sp,%g1,%sp	// Save min stack + 4 for 8 byte bound ...
+	<span class="enscript-keyword">mov</span> %i0,%o0
+	<span class="enscript-keyword">mov</span> %i1,%o1
+	<span class="enscript-keyword">addcc</span> %i2,-8,%i2           // The first 6 args go in registers 
+        <span class="enscript-keyword">be</span> .Lsend_msg
+	<span class="enscript-keyword">nop
+</span>	<span class="enscript-keyword">ld</span> [%i3+8],%o2             // Got at least 1 arg 
+	<span class="enscript-keyword">addcc</span> %i2,-4,%i2
+        <span class="enscript-keyword">be</span> .Lsend_msg
+	<span class="enscript-keyword">nop
+</span>	<span class="enscript-keyword">ld</span> [%i3+12],%o3		   // Got at least 2 args 
+	<span class="enscript-keyword">addcc</span> %i2,-4,%i2
+        <span class="enscript-keyword">be</span> .Lsend_msg
+	<span class="enscript-keyword">nop
+</span>	<span class="enscript-keyword">ld</span> [%i3+16],%o4            // Got at least 3 args 
+	<span class="enscript-keyword">addcc</span> %i2,-4,%i2
+        <span class="enscript-keyword">be</span> .Lsend_msg
+	<span class="enscript-keyword">nop
+</span>	<span class="enscript-keyword">ld</span> [%i3+20],%o5            // Got at least 4 args
+	<span class="enscript-keyword">addcc</span> %i2,-4,%i2	   // Decrement count past 4th arg
+	<span class="enscript-keyword">be</span> .Lsend_msg
+	<span class="enscript-keyword">nop
+</span>	<span class="enscript-keyword">add</span> %i3,24,%i1             // %i1 &lt;== args += 24
+	<span class="enscript-keyword">add</span> %sp,92,%i5
+<span class="enscript-function-name">.Loop2:</span>
+        <span class="enscript-keyword">ld</span> [%i1],%i3		   // Deal with remaining args
+        <span class="enscript-keyword">addcc</span> %i2,-4,%i2
+        <span class="enscript-keyword">st</span> %i3,[%i5]
+        <span class="enscript-keyword">add</span> %i5,4,%i5
+        <span class="enscript-keyword">bne</span> .Loop2
+        <span class="enscript-keyword">add</span> %i1,4,%i1
+<span class="enscript-function-name">.Lsend_msg:</span>
+
+	<span class="enscript-keyword">ld</span> [%i7+8],%g3			// load instruction
+	<span class="enscript-keyword">sethi</span> %hi(CLEARLOW22),%g2	// mask off low 22 bits
+	<span class="enscript-keyword">andcc</span> %g3,%g2,%g0		// if 0, then its an UNIMP inst
+	<span class="enscript-keyword">be</span> .Lstruct_returnSendv		// and we will return a structure
+	<span class="enscript-keyword">nop</span>				// fill me in later
+
+	<span class="enscript-keyword">//</span> No structure is returned
+	<span class="enscript-keyword">call</span> objc_msgSend,0		// send the message 
+	<span class="enscript-keyword">nop</span>				// fill me in later 
+	<span class="enscript-keyword">mov</span> %o0,%i0			// Ret int, 1st half
+	<span class="enscript-keyword">ret</span>				// ... of long long 
+	<span class="enscript-keyword">restore</span> %o1,0,%o1		// 2nd half of ll   
+
+<span class="enscript-function-name">.Lstruct_returnSendv:</span>
+ 	<span class="enscript-keyword">ld</span> [%fp+64],%g2		// get return struct ptr 
+	<span class="enscript-keyword">st</span> %g2,[%sp+64]		// save return struct pointer 
+	<span class="enscript-keyword">call</span> objc_msgSend,0	// send the message 
+	<span class="enscript-keyword">nop</span>			// fill me in later 
+	<span class="enscript-keyword">unimp</span> 0			// let 0 mean size = unknown 
+	<span class="enscript-keyword">jmp</span> %i7 + 12		// convention for returning structs 
+	<span class="enscript-keyword">restore
+</span>
+//
+//	void _objc_private_lock (long* lock)
+//
+	<span class="enscript-keyword">.align</span> 4
+	<span class="enscript-keyword">.global</span> _objc_private_lock	
+	<span class="enscript-keyword">.type</span> _objc_private_lock,#function
+<span class="enscript-function-name">_objc_private_lock:</span>
+	<span class="enscript-keyword">save</span>	%sp,-96,%sp     // Save the stack
+	<span class="enscript-keyword">set</span>	1,%l3		// lock code (1)
+<span class="enscript-function-name">.L_private_loop:</span>
+	<span class="enscript-keyword">swap</span>	[%i0],%l3	// try to set the lock
+	<span class="enscript-keyword">tst</span>	%l3		// if lock was already set
+	<span class="enscript-keyword">bnz,a</span>	.L_private_loop	// try again
+	<span class="enscript-keyword">set</span>	1,%l3		// &lt;ds&gt; lock code (1)
+	<span class="enscript-keyword">jmp</span> %i7+8
+	<span class="enscript-keyword">restore</span> 
+
+//
+//	void _objc_private_unlock (long* lock)
+//
+	<span class="enscript-keyword">.align</span> 4
+	<span class="enscript-keyword">.global</span> _objc_private_unlock	
+	<span class="enscript-keyword">.type</span> _objc_private_unlock,#function
+<span class="enscript-function-name">_objc_private_unlock:</span>
+	<span class="enscript-keyword">swap</span>	[%o0],%g0	// clear the lock
+	<span class="enscript-keyword">jmp</span> %o7+8
+	<span class="enscript-keyword">nop
+</span></pre>
+<hr />
+</body></html>

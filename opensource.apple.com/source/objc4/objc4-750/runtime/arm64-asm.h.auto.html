@@ -1,0 +1,191 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>arm64-asm.h</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">arm64-asm.h&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="arm64-asm.h">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+<span class="enscript-comment">/*
+ * @APPLE_LICENSE_HEADER_START@
+ * 
+ * Copyright (c) 2018 Apple Inc.  All Rights Reserved.
+ * 
+ * This file contains Original Code and/or Modifications of Original Code
+ * as defined in and that are subject to the Apple Public Source License
+ * Version 2.0 (the 'License'). You may not use this file except in
+ * compliance with the License. Please obtain a copy of the License at
+ * <a href="http://www.opensource.apple.com/apsl/">http://www.opensource.apple.com/apsl/</a> and read it before using this
+ * file.
+ * 
+ * The Original Code and all software distributed under the License are
+ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
+ * Please see the License for the specific language governing rights and
+ * limitations under the License.
+ * 
+ * @APPLE_LICENSE_HEADER_END@
+ */</span>
+<span class="enscript-comment">/********************************************************************
+ * 
+ *  arm64-asm.h - asm tools for arm64/arm64_32 and ROP/JOP
+ *
+ ********************************************************************/</span>
+
+#<span class="enscript-reference">if</span> <span class="enscript-variable-name">__arm64__</span>
+
+#<span class="enscript-reference">if</span> <span class="enscript-variable-name">__LP64__</span>
+<span class="enscript-comment">// true arm64
+</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">SUPPORT_TAGGED_POINTERS</span> 1
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">PTR</span> .quad
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">PTRSIZE</span> 8
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">PTRSHIFT</span> 3  // 1&lt;&lt;PTRSHIFT == PTRSIZE
+<span class="enscript-comment">// &quot;p&quot; registers are pointer-sized
+</span>#<span class="enscript-reference">define</span> <span class="enscript-variable-name">UXTP</span> UXTX
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p0</span>  x0
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p1</span>  x1
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p2</span>  x2
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p3</span>  x3
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p4</span>  x4
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p5</span>  x5
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p6</span>  x6
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p7</span>  x7
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p8</span>  x8
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p9</span>  x9
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p10</span> x10
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p11</span> x11
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p12</span> x12
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p13</span> x13
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p14</span> x14
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p15</span> x15
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p16</span> x16
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p17</span> x17
+
+<span class="enscript-comment">// true arm64
+</span>#<span class="enscript-reference">else</span>
+<span class="enscript-comment">// arm64_32
+</span>
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">SUPPORT_TAGGED_POINTERS</span> 0
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">PTR</span> .long
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">PTRSIZE</span> 4
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">PTRSHIFT</span> 2  // 1&lt;&lt;PTRSHIFT == PTRSIZE
+<span class="enscript-comment">// &quot;p&quot; registers are pointer-sized
+</span>#<span class="enscript-reference">define</span> <span class="enscript-variable-name">UXTP</span> UXTW
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p0</span>  w0
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p1</span>  w1
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p2</span>  w2
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p3</span>  w3
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p4</span>  w4
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p5</span>  w5
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p6</span>  w6
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p7</span>  w7
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p8</span>  w8
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p9</span>  w9
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p10</span> w10
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p11</span> w11
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p12</span> w12
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p13</span> w13
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p14</span> w14
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p15</span> w15
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p16</span> w16
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">p17</span> w17
+
+<span class="enscript-comment">// arm64_32
+</span>#<span class="enscript-reference">endif</span>
+
+
+#<span class="enscript-reference">if</span> <span class="enscript-variable-name">__has_feature</span>(<span class="enscript-variable-name">ptrauth_returns</span>)
+<span class="enscript-comment">// ROP
+</span>#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">SignLR</span> pacibsp
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">AuthenticateLR</span> autibsp
+#<span class="enscript-reference">else</span>
+<span class="enscript-comment">// not ROP
+</span>#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">SignLR</span>
+#   <span class="enscript-reference">define</span> <span class="enscript-variable-name">AuthenticateLR</span>
+#<span class="enscript-reference">endif</span>
+
+#<span class="enscript-reference">if</span> <span class="enscript-variable-name">__has_feature</span>(<span class="enscript-variable-name">ptrauth_calls</span>)
+<span class="enscript-comment">// JOP
+</span>
+.macro TailCallFunctionPointer
+	<span class="enscript-comment">// $0 = function pointer value
+</span>	braaz	$0
+.endmacro
+
+.macro TailCallCachedImp
+	<span class="enscript-comment">// $0 = cached imp, $1 = address of cached imp
+</span>	brab	$0, $1
+.endmacro
+
+.macro TailCallMethodListImp
+	<span class="enscript-comment">// $0 = method list imp, $1 = address of method list imp
+</span>	braa	$0, $1
+.endmacro
+
+.macro TailCallBlockInvoke
+	<span class="enscript-comment">// $0 = invoke function, $1 = address of invoke function
+</span>	braa	$0, $1
+.endmacro
+
+.macro AuthAndResignAsIMP
+	<span class="enscript-comment">// $0 = cached imp, $1 = address of cached imp
+</span>	autib	$0, $1		<span class="enscript-comment">// authenticate cached imp
+</span>	paciza	$0		<span class="enscript-comment">// resign cached imp as IMP
+</span>.endmacro
+
+<span class="enscript-comment">// JOP
+</span>#<span class="enscript-reference">else</span>
+<span class="enscript-comment">// not JOP
+</span>
+.macro TailCallFunctionPointer
+	<span class="enscript-comment">// $0 = function pointer value
+</span>	br	$0
+.endmacro
+
+.macro TailCallCachedImp
+	<span class="enscript-comment">// $0 = cached imp, $1 = address of cached imp
+</span>	br	$0
+.endmacro
+
+.macro TailCallMethodListImp
+	<span class="enscript-comment">// $0 = method list imp, $1 = address of method list imp
+</span>	br	$0
+.endmacro
+
+.macro TailCallBlockInvoke
+	<span class="enscript-comment">// $0 = invoke function, $1 = address of invoke function
+</span>	br	$0
+.endmacro
+
+.macro AuthAndResignAsIMP
+	<span class="enscript-comment">// empty
+</span>.endmacro	
+
+<span class="enscript-comment">// not JOP
+</span>#<span class="enscript-reference">endif</span>
+
+#<span class="enscript-reference">define</span> <span class="enscript-variable-name">TailCallBlockInvoke</span> TailCallMethodListImp
+
+
+<span class="enscript-comment">// __arm64__
+</span>#<span class="enscript-reference">endif</span>
+</pre>
+<hr />
+</body></html>

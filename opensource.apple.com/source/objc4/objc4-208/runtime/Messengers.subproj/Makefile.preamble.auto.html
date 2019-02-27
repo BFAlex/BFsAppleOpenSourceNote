@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>Makefile.preamble</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">Makefile.preamble&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="Makefile.preamble">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+<span class="enscript-comment">###############################################################################
+</span><span class="enscript-comment">#  Makefile.preamble
+</span><span class="enscript-comment">#  Copyright 1997, Apple Computer, Inc.
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#  Use this makefile for configuring the standard application makefiles 
+</span><span class="enscript-comment">#  associated with ProjectBuilder. It is included before the main makefile.
+</span><span class="enscript-comment">#  In Makefile.preamble you set attributes for a project, so they are available
+</span><span class="enscript-comment">#  to the project's makefiles.  In contrast, you typically write additional rules or 
+</span><span class="enscript-comment">#  override built-in behavior in the Makefile.postamble.
+</span><span class="enscript-comment">#  
+</span><span class="enscript-comment">#  Each directory in a project tree (main project plus subprojects) should 
+</span><span class="enscript-comment">#  have its own Makefile.preamble and Makefile.postamble.
+</span><span class="enscript-comment">###############################################################################
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment"># Before the main makefile is included for this project, you may set:
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#    MAKEFILEDIR: Directory in which to find $(MAKEFILE)
+</span><span class="enscript-comment">#    MAKEFILE: Top level mechanism Makefile (e.g., app.make, bundle.make)
+</span>
+<span class="enscript-comment"># Compiler/linker flags added to the defaults:  The OTHER_* variables will be 
+</span><span class="enscript-comment"># inherited by all nested sub-projects, but the LOCAL_ versions of the same
+</span><span class="enscript-comment"># variables will not.  Put your -I, -D, -U, and -L flags in ProjectBuilder's
+</span><span class="enscript-comment"># Build Attributes inspector if at all possible.  To override the default flags
+</span><span class="enscript-comment"># that get passed to ${CC} (e.g. change -O to -O2), see Makefile.postamble.  The
+</span><span class="enscript-comment"># variables below are *inputs* to the build process and distinct from the override
+</span><span class="enscript-comment"># settings done (less often) in the Makefile.postamble.
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#    OTHER_CFLAGS, LOCAL_CFLAGS:  additional flags to pass to the compiler
+</span><span class="enscript-comment">#	Note that $(OTHER_CFLAGS) and $(LOCAL_CFLAGS) are used for .h, ...c, .m,
+</span><span class="enscript-comment">#	.cc, .cxx, .C, and .M files.  There is no need to respecify the
+</span><span class="enscript-comment">#	flags in OTHER_MFLAGS, etc.
+</span><span class="enscript-comment">#    OTHER_MFLAGS, LOCAL_MFLAGS:  additional flags for .m files
+</span><span class="enscript-comment">#    OTHER_CCFLAGS, LOCAL_CCFLAGS:  additional flags for .cc, .cxx, and ...C files
+</span><span class="enscript-comment">#    OTHER_MMFLAGS, LOCAL_MMFLAGS:  additional flags for .mm and .M files
+</span><span class="enscript-comment">#    OTHER_PRECOMPFLAGS, LOCAL_PRECOMPFLAGS:  additional flags used when
+</span><span class="enscript-comment">#	precompiling header files
+</span><span class="enscript-comment">#    OTHER_LDFLAGS, LOCAL_LDFLAGS:  additional flags passed to ld and libtool
+</span><span class="enscript-comment">#    OTHER_PSWFLAGS, LOCAL_PSWFLAGS:  additional flags passed to pswrap
+</span><span class="enscript-comment">#    OTHER_RPCFLAGS, LOCAL_RPCFLAGS:  additional flags passed to rpcgen
+</span><span class="enscript-comment">#    OTHER_YFLAGS, LOCAL_YFLAGS:  additional flags passed to yacc
+</span><span class="enscript-comment">#    OTHER_LFLAGS, LOCAL_LFLAGS:  additional flags passed to lex
+</span>
+<span class="enscript-comment"># These variables provide hooks enabling you to add behavior at almost every 
+</span><span class="enscript-comment"># stage of the make:
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#    BEFORE_PREBUILD: targets to build before installing headers for a subproject
+</span><span class="enscript-comment">#    AFTER_PREBUILD: targets to build after installing headers for a subproject
+</span><span class="enscript-comment">#    BEFORE_BUILD_RECURSION: targets to make before building subprojects
+</span><span class="enscript-comment">#    BEFORE_BUILD: targets to make before a build, but after subprojects
+</span><span class="enscript-comment">#    AFTER_BUILD: targets to make after a build
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#    BEFORE_INSTALL: targets to build before installing the product
+</span><span class="enscript-comment">#    AFTER_INSTALL: targets to build after installing the product
+</span><span class="enscript-comment">#    BEFORE_POSTINSTALL: targets to build before postinstalling every subproject
+</span><span class="enscript-comment">#    AFTER_POSTINSTALL: targts to build after postinstalling every subproject
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#    BEFORE_INSTALLHDRS: targets to build before installing headers for a 
+</span><span class="enscript-comment">#         subproject
+</span><span class="enscript-comment">#    AFTER_INSTALLHDRS: targets to build after installing headers for a subproject
+</span><span class="enscript-comment">#    BEFORE_INSTALLSRC: targets to build before installing source for a subproject
+</span><span class="enscript-comment">#    AFTER_INSTALLSRC: targets to build after installing source for a subproject
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#    BEFORE_DEPEND: targets to build before building dependencies for a
+</span><span class="enscript-comment">#	  subproject
+</span><span class="enscript-comment">#    AFTER_DEPEND: targets to build after building dependencies for a
+</span><span class="enscript-comment">#	  subproject
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#    AUTOMATIC_DEPENDENCY_INFO: if YES, then the dependency file is
+</span><span class="enscript-comment">#	  updated every time the project is built.  If NO, the dependency
+</span><span class="enscript-comment">#	  file is only built when the depend target is invoked.
+</span>
+<span class="enscript-comment"># Framework-related variables:
+</span><span class="enscript-comment">#    FRAMEWORK_DLL_INSTALLDIR:  On Windows platforms, this variable indicates
+</span><span class="enscript-comment">#	where to put the framework's DLL.  This variable defaults to 
+</span><span class="enscript-comment">#	$(INSTALLDIR)/../Executables
+</span>
+<span class="enscript-comment"># Library-related variables:
+</span><span class="enscript-comment">#    PUBLIC_HEADER_DIR:  Determines where public exported header files
+</span><span class="enscript-comment">#	should be installed.  Do not include $(DSTROOT) in this value --
+</span><span class="enscript-comment">#	it is prefixed automatically.
+</span><span class="enscript-comment">#    PRIVATE_HEADER_DIR:  Determines where private exported header files
+</span><span class="enscript-comment">#  	should be installed.  Do not include $(DSTROOT) in this value --
+</span><span class="enscript-comment">#	it is prefixed automatically.
+</span><span class="enscript-comment">#    LIBRARY_STYLE:  This may be either STATIC or DYNAMIC, and determines
+</span><span class="enscript-comment">#  	whether the libraries produced are statically linked when they
+</span><span class="enscript-comment">#	are used or if they are dynamically loadable. &lt;&lt;default?&gt;&gt;
+</span><span class="enscript-comment">#    LIBRARY_DLL_INSTALLDIR:  On Windows platforms, this variable indicates
+</span><span class="enscript-comment">#	where to put the library's DLL.  This variable defaults to 
+</span><span class="enscript-comment">#	$(INSTALLDIR)/../Executables
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#    INSTALL_AS_USER: owner of the intalled products (default root)
+</span><span class="enscript-comment">#    INSTALL_AS_GROUP: group of the installed products (default wheel)
+</span><span class="enscript-comment">#    INSTALL_PERMISSION: permissions of the installed product (default o+rX)
+</span><span class="enscript-comment">#
+</span><span class="enscript-comment">#    OTHER_RECURSIVE_VARIABLES: The names of variables which you want to be
+</span><span class="enscript-comment">#  	passed on the command line to recursive invocations of make.  Note that
+</span><span class="enscript-comment">#	the values in OTHER_*FLAGS are inherited by subprojects automatically --
+</span><span class="enscript-comment">#	you do not have to (and shouldn't) add OTHER_*FLAGS to 
+</span><span class="enscript-comment">#	OTHER_RECURSIVE_VARIABLES. 
+</span>
+<span class="enscript-comment"># Additional headers to export beyond those in the PB.project:
+</span><span class="enscript-comment">#    OTHER_PUBLIC_HEADERS
+</span><span class="enscript-comment">#    OTHER_PROJECT_HEADERS
+</span><span class="enscript-comment">#    OTHER_PRIVATE_HEADERS
+</span>
+<span class="enscript-comment"># Additional files for the project's product: &lt;&lt;path relative to proj?&gt;&gt;
+</span><span class="enscript-comment">#    OTHER_RESOURCES: (non-localized) resources for this project
+</span><span class="enscript-comment">#    OTHER_OFILES: relocatables to be linked into this project
+</span><span class="enscript-comment">#    OTHER_LIBS: more libraries to link against
+</span><span class="enscript-comment">#    OTHER_PRODUCT_DEPENDS: other dependencies of this project
+</span><span class="enscript-comment">#    OTHER_SOURCEFILES: other source files maintained by .pre/postamble
+</span><span class="enscript-comment">#    OTHER_GARBAGE: additional files to be removed by `make clean'
+</span>
+<span class="enscript-comment"># Set this to YES if you don't want a final libtool call for a library/framework.
+</span><span class="enscript-comment">#    BUILD_OFILES_LIST_ONLY
+</span>
+<span class="enscript-comment"># To include a version string, project source must exist in a directory named 
+</span><span class="enscript-comment"># $(NAME).%d[.%d][.%d] and the following line must be uncommented.
+</span><span class="enscript-comment"># OTHER_GENERATED_OFILES = $(VERS_OFILE)
+</span>
+<span class="enscript-comment"># This definition will suppress stripping of debug symbols when an executable
+</span><span class="enscript-comment"># is installed.  By default it is YES.
+</span><span class="enscript-comment"># STRIP_ON_INSTALL = NO
+</span></pre>
+<hr />
+</body></html>

@@ -1,0 +1,713 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<title>objc-msg-i386-nextpdo-winnt3.5.s</title>
+<style type="text/css">
+.enscript-comment { font-style: italic; color: rgb(178,34,34); }
+.enscript-function-name { font-weight: bold; color: rgb(0,0,255); }
+.enscript-variable-name { font-weight: bold; color: rgb(184,134,11); }
+.enscript-keyword { font-weight: bold; color: rgb(160,32,240); }
+.enscript-reference { font-weight: bold; color: rgb(95,158,160); }
+.enscript-string { font-weight: bold; color: rgb(188,143,143); }
+.enscript-builtin { font-weight: bold; color: rgb(218,112,214); }
+.enscript-type { font-weight: bold; color: rgb(34,139,34); }
+.enscript-highlight { text-decoration: underline; color: 0; }
+</style>
+</head>
+<body id="top">
+<h1 style="margin:8px;" id="f1">objc-msg-i386-nextpdo-winnt3.5.s&nbsp;&nbsp;&nbsp;<span style="font-weight: normal; font-size: 0.5em;">[<a href="objc-msg-i386-nextpdo-winnt3.5.s">plain text</a>]</span></h1>
+<hr/>
+<div></div>
+<pre>
+/*
+ <span class="enscript-keyword">*</span> Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_START@
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> Portions Copyright (c) 1999 Apple Computer, Inc.  All Rights
+ <span class="enscript-keyword">*</span> Reserved.  This file contains Original Code and/or Modifications of
+ <span class="enscript-keyword">*</span> Original Code as defined in and that are subject to the Apple Public
+ <span class="enscript-keyword">*</span> Source License Version 1.1 (the <span class="enscript-string">&quot;License&quot;</span>).  You may not use this file
+ <span class="enscript-keyword">*</span> except in compliance with the License.  Please obtain a copy of the
+ <span class="enscript-keyword">*</span> License at <a href="http://www.apple.com/publicsource">http://www.apple.com/publicsource</a> and read it before using
+ <span class="enscript-keyword">*</span> this file.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> The Original Code and all software distributed under the License are
+ <span class="enscript-keyword">*</span> distributed on an <span class="enscript-string">&quot;AS IS&quot;</span> basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ <span class="enscript-keyword">*</span> EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ <span class="enscript-keyword">*</span> INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ <span class="enscript-keyword">*</span> FITNESS FOR A PARTICULAR PURPOSE OR NON- INFRINGEMENT.  Please see the
+ <span class="enscript-keyword">*</span> License for the specific language governing rights and limitations
+ <span class="enscript-keyword">*</span> under the License.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> @APPLE_LICENSE_HEADER_END@
+ <span class="enscript-keyword">*/
+</span>	<span class="enscript-keyword">.file</span>	<span class="enscript-string">&quot;objc-msg-i386.s&quot;</span>
+<span class="enscript-function-name">gcc2_compiled.:</span>
+<span class="enscript-function-name">___gnu_compiled_objc:</span>
+#ifdef KERNEL
+.globl _objc_entryPoints
+<span class="enscript-function-name">_objc_entryPoints:</span>
+	<span class="enscript-keyword">.long</span> _objc_msgSend
+	<span class="enscript-keyword">.long</span> _objc_msgSendSuper
+	<span class="enscript-keyword">.long</span> _objc_msgSendv
+	<span class="enscript-keyword">.long</span> 0
+
+.globl _objc_exitPoints
+<span class="enscript-function-name">_objc_exitPoints:</span>
+	<span class="enscript-keyword">.long</span> Lexit1
+	<span class="enscript-keyword">.long</span> Lexit2
+	<span class="enscript-keyword">.long</span> Lexit3
+	<span class="enscript-keyword">.long</span> Lexit4
+	<span class="enscript-keyword">.long</span> Lexit5
+	<span class="enscript-keyword">.long</span> Lexit6
+	<span class="enscript-keyword">.long</span> Lexit7
+	<span class="enscript-keyword">.long</span> Lexit8
+	<span class="enscript-keyword">.long</span> 0
+#endif /* KERNEL */
+
+/********************************************************************
+ <span class="enscript-keyword">********************************************************************
+</span> <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> Objective-C message dispatching for the Win32/i386
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+// Make this non-zero to use old style 32-bit-dirty structure returns
+#define COMPATIBLE_CODE		0
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> Stack frame definitions.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">//</span> standard word-return arguments
+	<span class="enscript-keyword">self</span>					= 4
+	<span class="enscript-keyword">selector</span>				= 8
+
+	<span class="enscript-keyword">//</span> standard struct-return arguments
+	<span class="enscript-keyword">//</span> These values are used when doing a struct return message.
+	<span class="enscript-keyword">//</span> The return value of the struct return is pushed on the stack
+	<span class="enscript-keyword">//</span> as a <span class="enscript-string">&quot;hidden&quot;</span> first parameter so the remaining parameters
+	<span class="enscript-keyword">//</span> are 4 bytes further down the stack than they are in a 
+	<span class="enscript-keyword">//</span> normal message
+	<span class="enscript-keyword">struct_return_addr</span>		= self
+	<span class="enscript-keyword">struct_return_self</span>		= self + 4
+	<span class="enscript-keyword">struct_return_selector</span>	= selector + 4
+
+	<span class="enscript-keyword">//</span> additional arguments for _objc_msgForward
+	<span class="enscript-keyword">margSize</span>				= 12
+	<span class="enscript-keyword">margs</span>					= 16
+
+	<span class="enscript-keyword">//</span> additional arguments for _objc_msgForward_stret
+	<span class="enscript-keyword">struct_return_margSize</span>	= margSize + 4
+	<span class="enscript-keyword">struct_return_margs</span>		= margs + 4
+
+
+	<span class="enscript-keyword">//</span> special self argument for objc_msgSendSuper
+	<span class="enscript-keyword">caller</span>					= self
+
+	<span class="enscript-keyword">//</span> special self argument for objc_msgSendSuper_stret
+	<span class="enscript-keyword">struct_return_caller</span>	= caller + 4
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> Structure definitions.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+// objc_super parameter to objc_msgSendSuper
+	<span class="enscript-keyword">receiver</span>		= 0
+	<span class="enscript-keyword">class</span>			= 4
+
+// Selected field offsets in class structure
+	<span class="enscript-keyword">isa</span>				= 0
+	<span class="enscript-keyword">cache</span>			= 32
+
+// Method descriptor
+	<span class="enscript-keyword">method_name</span>		= 0
+	<span class="enscript-keyword">method_imp</span>		= 8
+
+// Cache header
+	<span class="enscript-keyword">mask</span>			= 0
+	<span class="enscript-keyword">occupied</span>		= 4
+	<span class="enscript-keyword">buckets</span>			= 8		// variable length array (null terminated)
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> Constants.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+// In case the implementation is _objc_msgForward, indicate to it
+// whether the method was invoked as a word-return or struct-return.
+// This flag is passed in a register that is caller-saved, and is
+// not part of the parameter passing convention (i.e. it is <span class="enscript-string">&quot;out of
+// band&quot;</span>).  This works because _objc_msgForward is only entered
+// from here in the messenger.
+	<span class="enscript-keyword">kFwdMsgSend</span>			= 0
+	<span class="enscript-keyword">kFwdMsgSendStret</span>	= 1
+
+/********************************************************************
+ <span class="enscript-keyword">*</span> id		objc_msgSend	   (id		self,
+ <span class="enscript-keyword">*</span>								SEL		op,
+ <span class="enscript-keyword">*</span>								...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> On entry:	(sp+4) is the message receiver,
+ <span class="enscript-keyword">*</span>				(sp+8) is the selector
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> And the structure-return version :
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> struct_type	objc_msgSend_stret     (id		self,
+ <span class="enscript-keyword">*</span>										SEL		op,
+ <span class="enscript-keyword">*</span>										...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> objc_msgSend_stret is the struct-return form of msgSend.
+ <span class="enscript-keyword">*</span> The ABI calls for (sp+4) to be used as the address of the structure
+ <span class="enscript-keyword">*</span> being returned, with the parameters in the succeeding locations.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> On entry:	(sp+4)is the address where the structure is returned,
+ <span class="enscript-keyword">*</span>				(sp+8) is the message receiver,
+ <span class="enscript-keyword">*</span>				(sp+12) is the selector
+ <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">.text
+</span>	<span class="enscript-keyword">.globl</span>	_objc_msgSend
+	<span class="enscript-keyword">.globl</span>	_objc_msgSend_stret
+	<span class="enscript-keyword">.align</span>	4, 0x90
+<span class="enscript-function-name">_objc_msgSend_stret:</span>
+	<span class="enscript-keyword">movl</span>	struct_return_self(%esp), %eax		// %eax = self
+	<span class="enscript-keyword">movl</span>	struct_return_selector(%esp), %ecx	// %ecx = selector
+	<span class="enscript-keyword">pushl</span>	$kFwdMsgSendStret					// flag struct-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>		L1check_message
+
+	<span class="enscript-keyword">.align</span>	4, 0x90
+<span class="enscript-function-name">_objc_msgSend:</span>
+#if COMPATIBLE_CODE
+	<span class="enscript-keyword">movl</span>	self(%esp), %eax
+	<span class="enscript-keyword">andl</span>	$0x80000000, %eax
+	<span class="enscript-keyword">jne</span>		_objc_msgSend_stret
+#endif
+	<span class="enscript-keyword">movl</span>	self(%esp), %eax					// %eax = self
+	<span class="enscript-keyword">movl</span>	selector(%esp), %ecx				// %ecx = selector
+	<span class="enscript-keyword">pushl</span>	$kFwdMsgSend						// flag word-return for _objc_msgForward
+
+<span class="enscript-function-name">L1check_message:</span>
+	<span class="enscript-keyword">pushl</span>	%ecx								// Push selector
+	<span class="enscript-keyword">pushl</span>	%eax								// Push self
+	<span class="enscript-keyword">movl</span>	%eax, %edx							// Move self off to do a comparison
+	<span class="enscript-keyword">andl</span>	__objc_multithread_mask, %edx		// And it against the multithreading mask
+												<span class="enscript-keyword">//</span>   This will also tell us if it's a nil object
+	<span class="enscript-keyword">je</span>		L1nil_or_multi						// Jump if nil or multithreading is on
+
+// Load variables and save caller registers.
+// Overlapped to prevent AGI
+// At this point, self has been loaded into eax and selector has been 
+// loaded into ecx.
+	<span class="enscript-keyword">movl</span>	isa(%eax), %eax						// class = self-&gt;isa
+	<span class="enscript-keyword">pushl</span>	%edi								//
+	<span class="enscript-keyword">movl</span>	cache(%eax), %eax					// cache = class-&gt;cache
+	<span class="enscript-keyword">pushl</span>	%esi								//
+
+	<span class="enscript-keyword">lea</span>		buckets(%eax), %edi					// buckets = &amp;cache-&gt;buckets
+	<span class="enscript-keyword">movl</span>	mask(%eax), %esi					// mask = cache-&gt;mask
+	<span class="enscript-keyword">movl</span>	%ecx, %edx							// index = selector
+
+<span class="enscript-function-name">L1probe_cache:</span>
+	<span class="enscript-keyword">andl</span>	%esi, %edx							// index &amp;= mask
+	<span class="enscript-keyword">movl</span>	(%edi, %edx, 4), %eax				// method_name = buckets[index]
+
+	<span class="enscript-keyword">testl</span>	%eax, %eax							// if (method != NULL) {
+	<span class="enscript-keyword">je</span>		L1cache_miss						//
+	<span class="enscript-keyword">cmpl</span>	method_name(%eax), %ecx				//    method_name = method-&gt;name
+	<span class="enscript-keyword">jne</span>		L1not_the_method					//	  if (method_name == selector) {
+
+	<span class="enscript-keyword">movl</span>	method_imp(%eax), %eax				//      imp = method-&gt;method_imp
+	<span class="enscript-keyword">popl</span>	%esi								//
+	<span class="enscript-keyword">popl</span>	%edi								//
+	<span class="enscript-keyword">addl</span>	$8, %esp							// dump saved self and selector
+	<span class="enscript-keyword">popl</span>	%edx								// secret word/struct return flag to _objc_msgForward
+<span class="enscript-function-name">Lexit1:</span>	jmp	*%eax								//      goto *imp
+	<span class="enscript-keyword">.space</span> 17									// area for moninitobjc to write
+												<span class="enscript-keyword">//</span>        }
+<span class="enscript-function-name">L1not_the_method:</span>
+	<span class="enscript-keyword">inc</span>		%edx								//    index++
+	<span class="enscript-keyword">jmp</span>		L1probe_cache						// }
+
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L1cache_miss:</span>
+	<span class="enscript-keyword">//</span> restore caller registers
+	<span class="enscript-keyword">popl</span>	%esi								//
+	<span class="enscript-keyword">popl</span>	%edi								//
+
+// self and selector are already on the stack, so just
+// replace self with its class pointer
+	<span class="enscript-keyword">popl</span>	%eax								// pop self
+	<span class="enscript-keyword">movl</span>	isa(%eax), %eax						// load the class pointer
+	<span class="enscript-keyword">pushl</span>	%eax								// push class pointer, selector is already there
+	<span class="enscript-keyword">call</span>	__class_lookupMethodAndLoadCache	// lookup the method and load the cache
+	<span class="enscript-keyword">addl</span>	$8, %esp							// pop the args off the stack
+	<span class="enscript-keyword">popl</span>	%edx								// secret word/struct return flag to _objc_msgForward
+<span class="enscript-function-name">Lexit2:</span>	jmp	*%eax	
+	<span class="enscript-keyword">.space</span> 17									// area for moninitobjc to write
+
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L1nil_or_multi:</span>
+	<span class="enscript-keyword">testl</span>	%eax,%eax							// Check for a nil object
+	<span class="enscript-keyword">jne</span>		L1multi_msgSend						// Jump to multi_msgSend if it's not a real object
+
+	<span class="enscript-keyword">movl</span>	__objc_msgNil, %eax					// Load nil message handler
+	<span class="enscript-keyword">testl</span>	%eax, %eax
+	<span class="enscript-keyword">je</span>		Ljust_return						// If NULL just return and don't do anything
+	<span class="enscript-keyword">call</span>	*%eax								//      call __objc_msgNil
+	<span class="enscript-keyword">xorl</span>	%eax, %eax							// Rezero $eax just in case
+<span class="enscript-function-name">Ljust_return:</span>
+	<span class="enscript-keyword">addl</span>	$12, %esp							// pop the args and flag off the stack
+	<span class="enscript-keyword">ret
+</span>
+
+// locking version of send - its the same except for the lock/clear
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L1multi_msgSend:</span>
+	<span class="enscript-keyword">//</span> spin lock
+	<span class="enscript-keyword">movl</span>	$1, %ecx							// Move 1 into ecx
+	<span class="enscript-keyword">leal</span>	_messageLock, %eax					// Then load the address of _messageLock 
+<span class="enscript-function-name">L11spin:</span>
+	<span class="enscript-keyword">xchgl</span>	%ecx, (%eax)
+	<span class="enscript-keyword">cmpl</span>	$0, %ecx
+	<span class="enscript-keyword">jne</span>		L11spin
+
+	<span class="enscript-keyword">movl</span>	0(%esp),%eax						// retrieve self
+	<span class="enscript-keyword">movl</span>	4(%esp),%ecx						// retrieve selector
+
+// load variables and save caller registers.
+// Overlapped to prevent AGI
+// At this point, self has been loaded into eax and selector has been 
+// loaded into ecx.
+	<span class="enscript-keyword">movl</span>	isa(%eax), %eax						// class = self-&gt;isa
+	<span class="enscript-keyword">pushl</span>	%edi								//
+	<span class="enscript-keyword">movl</span>	cache(%eax), %eax					// cache = class-&gt;cache
+	<span class="enscript-keyword">pushl</span>	%esi								//
+
+	<span class="enscript-keyword">lea</span>		buckets(%eax), %edi					// buckets = &amp;cache-&gt;buckets
+	<span class="enscript-keyword">movl</span>	mask(%eax), %esi					// mask = cache-&gt;mask
+	<span class="enscript-keyword">movl</span>	%ecx, %edx							// index = selector
+
+<span class="enscript-function-name">L11probe_cache:</span>
+	<span class="enscript-keyword">andl</span>	%esi, %edx							// index &amp;= mask
+	<span class="enscript-keyword">movl</span>	(%edi, %edx, 4), %eax				// method_name = buckets[index]
+
+	<span class="enscript-keyword">testl</span>	%eax, %eax							// if (method != NULL) {
+	<span class="enscript-keyword">je</span>		L11cache_miss						//
+	<span class="enscript-keyword">cmpl</span>	method_name(%eax), %ecx				//    method_name = method-&gt;name
+	<span class="enscript-keyword">jne</span>		L11not_the_method					//	  if (method_name == selector) {
+
+	<span class="enscript-keyword">movl</span>	method_imp(%eax), %eax				//      imp = method-&gt;method_imp
+	<span class="enscript-keyword">popl</span>	%esi								//
+	<span class="enscript-keyword">popl</span>	%edi								//
+	<span class="enscript-keyword">addl</span>	$8, %esp							// dump saved self and selector
+	<span class="enscript-keyword">movl</span>	$0, _messageLock					// unlock
+	<span class="enscript-keyword">popl</span>	%edx								// secret word/struct return flag to _objc_msgForward
+<span class="enscript-function-name">Lexit3:</span>	jmp	*%eax								//      goto *imp
+	<span class="enscript-keyword">.space</span> 17									// area for moninitobjc to write
+												<span class="enscript-keyword">//</span>        }
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L11not_the_method:</span>
+	<span class="enscript-keyword">inc</span>	%edx									//    index++
+	<span class="enscript-keyword">jmp</span>	L11probe_cache							// }
+
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L11cache_miss:</span>
+	<span class="enscript-keyword">//</span> restore caller registers
+	<span class="enscript-keyword">popl</span>	%esi								//
+	<span class="enscript-keyword">popl</span>	%edi								//
+
+// self and selector are already on the stack, so just
+// replace self with its class pointer
+	<span class="enscript-keyword">popl</span>	%eax								// pop self
+	<span class="enscript-keyword">movl</span>	isa(%eax), %eax						// load the class pointer
+	<span class="enscript-keyword">pushl</span>	%eax								// push class pointer, selector is already there
+	<span class="enscript-keyword">call</span>	__class_lookupMethodAndLoadCache
+	<span class="enscript-keyword">addl</span>	$8, %esp
+	<span class="enscript-keyword">movl</span>	$0, _messageLock					// unlock
+	<span class="enscript-keyword">popl</span>	%edx								// secret word/struct return flag to _objc_msgForward
+<span class="enscript-function-name">Lexit4:</span>	jmp	*%eax
+	<span class="enscript-keyword">.space</span> 17									// area for moninitobjc to write
+
+
+/********************************************************************
+ <span class="enscript-keyword">*</span> id	objc_msgSendSuper	   (struct objc_super *	super,
+ <span class="enscript-keyword">*</span>								SEL					op,
+ <span class="enscript-keyword">*</span>								...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> struct objc_super {
+ <span class="enscript-keyword">*</span>	id		receiver<span class="enscript-comment">;
+ *	Class	class;
+</span> <span class="enscript-keyword">*</span> }<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> And the structure-return version:
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> struct_type	objc_msgSendSuper_stret	   (objc_super *	super,
+ <span class="enscript-keyword">*</span>											SEL				op,
+ <span class="enscript-keyword">*</span>											...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> struct objc_super {
+ <span class="enscript-keyword">*</span>	id		receiver<span class="enscript-comment">;
+ *	Class	class;
+</span> <span class="enscript-keyword">*</span> }<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> objc_msgSendSuper_stret is the struct-return form of msgSendSuper.
+ <span class="enscript-keyword">*</span> The ABI calls for (sp+4) to be used as the address of the structure
+ <span class="enscript-keyword">*</span> being returned, with the parameters in the succeeding registers.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> On entry:	(sp+4) is the address to which to copy the returned structure,
+ <span class="enscript-keyword">*</span>				(sp+8) is the address of the objc_super structure,
+ <span class="enscript-keyword">*</span>				(sp+12) is the selector
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">.globl</span>	_objc_msgSendSuper
+	<span class="enscript-keyword">.globl</span>	_objc_msgSendSuper_stret
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">_objc_msgSendSuper:</span>
+#if COMPATIBLE_CODE
+	<span class="enscript-keyword">movl</span>	caller(%esp), %eax
+	<span class="enscript-keyword">andl</span>	$0x80000000, %eax
+	<span class="enscript-keyword">jne</span>		_objc_msgSendSuper_stret
+#endif
+	<span class="enscript-keyword">movl</span>	caller(%esp), %eax					// %eax = caller
+	<span class="enscript-keyword">movl</span>	receiver(%eax), %edx				// get receiver
+	<span class="enscript-keyword">movl</span>	%edx, caller(%esp)					// replace caller with receiver
+	<span class="enscript-keyword">movl</span>	selector(%esp), %ecx				// %ecx = selector
+	<span class="enscript-keyword">pushl</span>	$kFwdMsgSend						// flag word-return for _objc_msgForward
+	<span class="enscript-keyword">jmp</span>		L1check_message_sendSuper			// goto common code
+
+<span class="enscript-function-name">_objc_msgSendSuper_stret:</span>
+	<span class="enscript-keyword">movl</span>	struct_return_caller(%esp), %eax	// %eax = caller
+	<span class="enscript-keyword">movl</span>	receiver(%eax), %edx				// get receiver
+	<span class="enscript-keyword">movl</span>	%edx, struct_return_caller (%esp)	// replace caller with receiver
+	<span class="enscript-keyword">movl</span>	struct_return_selector(%esp), %ecx	// %ecx = selector
+	<span class="enscript-keyword">pushl</span>	$kFwdMsgSendStret					// flag struct-return for _objc_msgForward
+
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L1check_message_sendSuper:</span>
+	<span class="enscript-keyword">pushl</span>	%ecx								// push selector
+	<span class="enscript-keyword">movl</span>	class(%eax), %eax					// class = caller-&gt;class
+	<span class="enscript-keyword">pushl</span>	%eax								// push callers class
+
+	<span class="enscript-keyword">movl</span>	__objc_multithread_mask, %edx		//
+	<span class="enscript-keyword">testl</span>	%edx, %edx							// if (multi)
+	<span class="enscript-keyword">je</span>		L2multi_msgSuperSend				//	goto locking version
+
+// At this point, callers class is in eax and selector is in ecx
+	<span class="enscript-keyword">pushl</span>	%edi								//
+	<span class="enscript-keyword">movl</span>	cache(%eax), %eax					// cache = class-&gt;cache
+	<span class="enscript-keyword">pushl</span>	%esi								//
+
+	<span class="enscript-keyword">lea</span>		buckets(%eax), %edi					// buckets = &amp;cache-&gt;buckets
+	<span class="enscript-keyword">movl</span>	mask(%eax), %esi					// mask = cache-&gt;mask
+	<span class="enscript-keyword">movl</span>	%ecx, %edx							// index = selector
+
+<span class="enscript-function-name">L2probe_cache:</span>
+	<span class="enscript-keyword">andl</span>	%esi, %edx							// index &amp;= mask
+	<span class="enscript-keyword">movl</span>	(%edi, %edx, 4), %eax				// method_name = buckets[index]
+
+	<span class="enscript-keyword">testl</span>	%eax, %eax							// if (method != NULL) {
+	<span class="enscript-keyword">je</span>		L2cache_miss						//
+	<span class="enscript-keyword">cmpl</span>	method_name(%eax), %ecx				//    method_name = method-&gt;name
+	<span class="enscript-keyword">jne</span>		L2not_the_method					//	  if (method_name == selector) {
+
+	<span class="enscript-keyword">//</span> Cache hit
+	<span class="enscript-keyword">popl</span>	%esi								// restore caller register
+	<span class="enscript-keyword">popl</span>	%edi								// restore caller register
+	<span class="enscript-keyword">addl</span>	$8, %esp							// dump saved class/selector
+
+	<span class="enscript-keyword">//</span> extract imp
+	<span class="enscript-keyword">movl</span>	method_imp(%eax), %eax				// imp = method-&gt;method_imp
+	<span class="enscript-keyword">popl</span>	%edx								// secret word/struct return flag to _objc_msgForward
+<span class="enscript-function-name">Lexit5:</span>	jmp	*%eax								//      goto *imp
+	<span class="enscript-keyword">.space</span> 17									// area for moninitobjc to write
+												<span class="enscript-keyword">//</span>        }
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L2not_the_method:</span>
+	<span class="enscript-keyword">inc</span>		%edx								//    index++
+	<span class="enscript-keyword">jmp</span>		L2probe_cache						// }
+
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L2cache_miss:</span>
+	<span class="enscript-keyword">popl</span>	%esi								// restore register
+	<span class="enscript-keyword">popl</span>	%edi								// restore register
+
+	<span class="enscript-keyword">//</span> Go lookup the method.  Parameters are the class and
+	<span class="enscript-keyword">//</span> selector, which are already on the stack in the
+	<span class="enscript-keyword">//</span> proper order.
+	<span class="enscript-keyword">call</span>	__class_lookupMethodAndLoadCache
+	<span class="enscript-keyword">addl</span>	$8, %esp
+	<span class="enscript-keyword">popl</span>	%edx								// secret word/struct return flag to _objc_msgForward
+<span class="enscript-function-name">Lexit6:</span>	jmp	*%eax
+	<span class="enscript-keyword">.space</span> 17									// area for moninitobjc to write
+
+
+
+// locking version of super send
+
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L2multi_msgSuperSend:</span>
+	<span class="enscript-keyword">//</span> spin lock
+	<span class="enscript-keyword">movl</span>	$1, %ecx
+	<span class="enscript-keyword">leal</span>	_messageLock, %eax
+<span class="enscript-function-name">L22spin:</span>
+	<span class="enscript-keyword">xchgl</span>	%ecx, (%eax)
+	<span class="enscript-keyword">cmpl</span>	$0, %ecx
+	<span class="enscript-keyword">jne</span>		L22spin
+
+	<span class="enscript-keyword">movl</span>	0(%esp), %eax					// retrieve class
+	<span class="enscript-keyword">movl</span>	4(%esp), %ecx					// retrieve selector
+
+	<span class="enscript-keyword">pushl</span>	%edi							//
+	<span class="enscript-keyword">movl</span>	cache(%eax), %eax				// cache = class-&gt;cache
+	<span class="enscript-keyword">pushl</span>	%esi							//
+
+	<span class="enscript-keyword">lea</span>		buckets(%eax), %edi				// buckets = &amp;cache-&gt;buckets
+	<span class="enscript-keyword">movl</span>	mask(%eax), %esi				// mask = cache-&gt;mask
+	<span class="enscript-keyword">movl</span>	%ecx, %edx						// index = selector
+
+<span class="enscript-function-name">L22probe_cache:</span>
+	<span class="enscript-keyword">andl</span>	%esi, %edx						// index &amp;= mask
+	<span class="enscript-keyword">movl</span>	(%edi, %edx, 4), %eax			// method_name = buckets[index]
+
+	<span class="enscript-keyword">testl</span>	%eax, %eax						// if (method != NULL) {
+	<span class="enscript-keyword">je</span>		L22cache_miss					//
+
+	<span class="enscript-keyword">cmpl</span>	method_name(%eax), %ecx			//    method_name = method-&gt;name
+	<span class="enscript-keyword">jne</span>		L22not_the_method				//	  if (method_name == selector) {
+	<span class="enscript-keyword">
+</span>	<span class="enscript-keyword">//</span> Cache hit
+	<span class="enscript-keyword">movl</span>	method_imp(%eax), %eax			// imp = method-&gt;method_imp
+	<span class="enscript-keyword">popl</span>	%esi							// restore caller register
+	<span class="enscript-keyword">popl</span>	%edi							// restore caller register
+	<span class="enscript-keyword">addl</span>	$8, %esp						// dump saved caller/selector
+	<span class="enscript-keyword">movl</span>	$0, _messageLock				// unlock
+	<span class="enscript-keyword">popl</span>	%edx							// secret word/struct return flag to _objc_msgForward
+<span class="enscript-function-name">Lexit7:</span>	jmp	*%eax							//      goto *imp
+	<span class="enscript-keyword">.space</span> 17								// area for moninitobjc to write
+											<span class="enscript-keyword">//</span>        }
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L22not_the_method:</span>
+	<span class="enscript-keyword">inc</span>		%edx							//    index++
+	<span class="enscript-keyword">jmp</span>		L22probe_cache					// }
+
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">L22cache_miss:</span>
+	<span class="enscript-keyword">popl</span>	%esi								// restore caller register
+	<span class="enscript-keyword">popl</span>	%edi								// restore caller register
+
+	<span class="enscript-keyword">//</span> Go lookup the method.  Parameters are the class and
+	<span class="enscript-keyword">//</span> selector, which are already on the stack in the
+	<span class="enscript-keyword">//</span> proper order.
+	<span class="enscript-keyword">call</span>	__class_lookupMethodAndLoadCache
+	<span class="enscript-keyword">addl</span>	$8, %esp
+	<span class="enscript-keyword">movl</span>	$0, _messageLock				// unlock
+	<span class="enscript-keyword">popl</span>	%edx							// secret word/struct return flag to _objc_msgForward
+<span class="enscript-function-name">Lexit8:</span>	jmp	*%eax
+	<span class="enscript-keyword">.space</span> 17								// area for moninitobjc to write
+
+/********************************************************************
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> Out-of-band parameter %edx indicates whether it was objc_msgSend or
+ <span class="enscript-keyword">*</span> objc_msgSend_stret that triggered the message forwarding.  The 
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> Iff %edx == kFwdMsgSend, it is the word-return (objc_msgSend) case,
+ <span class="enscript-keyword">*</span> and the interface is:
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> id		_objc_msgForward	   (id		self,
+ <span class="enscript-keyword">*</span>									SEL		selector,
+ <span class="enscript-keyword">*</span>									...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> Iff %edx != kFwdMsgSend, it is the structure-return
+ <span class="enscript-keyword">*</span> (objc_msgSend_stret) case, and the interface is:
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> struct_type	_objc_msgForward   (id		self,
+ <span class="enscript-keyword">*</span>									SEL		selector,
+ <span class="enscript-keyword">*</span>									...)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> There are numerous reasons why it is better to have one
+ <span class="enscript-keyword">*</span> _objc_msgForward, rather than adding _objc_msgForward_stret.
+ <span class="enscript-keyword">*</span> The best one is that _objc_msgForward is the method that
+ <span class="enscript-keyword">*</span> gets cached when respondsToMethod returns false, and it
+ <span class="enscript-keyword">*</span> wouldnt know which one to use.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> Sends the message to a method having the signature
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span>      - forward: (SEL) selector : (marg_list) margs<span class="enscript-comment">;
+ ********************************************************************/
+</span>
+// Location LFwdStr contains the string <span class="enscript-string">&quot;forward::&quot;</span>
+// Location LFwdSel contains a pointer to LFwdStr, that can be changed
+// to point to another forward:: string for selector uniquing
+// purposes.  ALWAYS dereference LFwdSel to get to <span class="enscript-string">&quot;forward::&quot;</span> !!
+        <span class="enscript-keyword">.global</span> objc_meth_var_names
+<span class="enscript-function-name">objc_meth_var_names:</span>
+ 	<span class="enscript-keyword">.align</span>	2, 0x90
+<span class="enscript-function-name">LFwdStr:</span>	.ascii <span class="enscript-string">&quot;forward::\0&quot;</span>
+
+        <span class="enscript-keyword">.global</span> objc_message_refs
+<span class="enscript-function-name">objc_message_refs:</span>
+ 	<span class="enscript-keyword">.align</span>	2, 0x90
+<span class="enscript-function-name">//LFwdSel:</span>	.long	LFwdStr
+<span class="enscript-function-name">LFwdSel:</span>	.long	_OBJC_METH_VAR_NAME_FORWARD
+
+ 	<span class="enscript-keyword">.align</span>	2, 0x90
+<span class="enscript-function-name">LUnkSelStr:</span>	.ascii <span class="enscript-string">&quot;Does not recognize selector %s\0&quot;</span>
+
+        <span class="enscript-keyword">.text
+</span>        <span class="enscript-keyword">.globl</span> __objc_msgForward
+	<span class="enscript-keyword">.align</span>	4, 0x90
+<span class="enscript-function-name">__objc_msgForward:</span>
+	<span class="enscript-keyword">cmpl</span>	$kFwdMsgSend, %edx					// check secret flag for word vs struct return
+	<span class="enscript-keyword">jne</span>		LMsgForwardStretSel					// jump if struct return
+
+	<span class="enscript-keyword">//</span> word-return
+	<span class="enscript-keyword">movl</span>	selector(%esp), %eax				// %eax = selector
+	<span class="enscript-keyword">movl</span>	self(%esp), %edx					// %edx = self
+	<span class="enscript-keyword">leal</span>	(self)(%esp), %ecx					// %ecx = &amp;parameters
+	<span class="enscript-keyword">jmp</span>		LMsgForwardCommon
+
+	<span class="enscript-keyword">//</span> structure return
+	<span class="enscript-keyword">.align</span> 4, 0x90
+<span class="enscript-function-name">LMsgForwardStretSel:</span>
+	<span class="enscript-keyword">movl</span>	struct_return_selector(%esp), %eax	// %eax = selector
+	<span class="enscript-keyword">movl</span>	struct_return_self(%esp), %edx		// %edx = self
+	<span class="enscript-keyword">leal</span>	(struct_return_addr)(%esp), %ecx	// %ecx = &amp;parameters
+
+	<span class="enscript-keyword">//</span> common code
+<span class="enscript-function-name">LMsgForwardCommon:</span>
+	<span class="enscript-keyword">cmpl</span>	LFwdSel, %eax						// forwarding <span class="enscript-string">&quot;forward::&quot;</span>?
+	<span class="enscript-keyword">je</span>		LMsgForwardError					// that would be an error
+
+	<span class="enscript-keyword">pushl</span>	%ecx								// push &amp;parameters
+	<span class="enscript-keyword">pushl</span>	%eax								// push original selector
+	<span class="enscript-keyword">pushl</span>	LFwdSel								// push <span class="enscript-string">&quot;forward::&quot;</span> selector
+	<span class="enscript-keyword">pushl</span>	%edx								// push self
+	<span class="enscript-keyword">call</span>	_objc_msgSend						// send the message
+	<span class="enscript-keyword">addl</span>	$16, %esp							// dump parameters
+	<span class="enscript-keyword">ret
+</span>
+	<span class="enscript-keyword">//</span> die because the receiver does not implement forward:: 
+ 	<span class="enscript-keyword">.align</span>	4, 0x90
+<span class="enscript-function-name">LMsgForwardError:</span>
+	<span class="enscript-keyword">pushl</span>	$LFwdSel							// push <span class="enscript-string">&quot;forward::&quot;</span> selector 
+	<span class="enscript-keyword">pushl</span>	$LUnkSelStr							// push <span class="enscript-string">&quot;unknown selector&quot;</span> string
+	<span class="enscript-keyword">pushl</span>	%edx								// push self
+	<span class="enscript-keyword">call</span>	___objc_error						// volatile, will not return
+
+/********************************************************************
+ <span class="enscript-keyword">*</span> id		objc_msgSendv  (id			self,
+ <span class="enscript-keyword">*</span>							SEL			selector,
+ <span class="enscript-keyword">*</span>							unsigned	margSize,
+ <span class="enscript-keyword">*</span>							marg_list	margs)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> On entry:	(sp+4)  is the message receiver,
+ <span class="enscript-keyword">*</span>				(sp+8)  is the selector,
+ <span class="enscript-keyword">*</span>				(sp+12) is the size of the marg_list, in bytes,
+ <span class="enscript-keyword">*</span>				(sp+16) is the address of the marg_list
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">.text
+</span>	<span class="enscript-keyword">.globl</span> _objc_msgSendv
+ 	<span class="enscript-keyword">.align</span>	4, 0x90
+<span class="enscript-function-name">_objc_msgSendv:</span>
+#if COMPATIBLE_CODE
+	<span class="enscript-keyword">movl</span>	(margs + 4)(%ebp), %eax
+	<span class="enscript-keyword">andl</span>	$0x80000000, %eax
+	<span class="enscript-keyword">jne</span>		_objc_msgSendv_stret
+#endif
+	<span class="enscript-keyword">pushl</span>	%ebp							// save %ebp
+	<span class="enscript-keyword">movl</span>	%esp, %ebp						// set stack frame base pointer
+	<span class="enscript-keyword">movl</span>	(margs + 4)(%ebp), %edx			// get address of method arguments
+	<span class="enscript-keyword">addl</span>	$8, %edx						// skip self &amp; selector
+	<span class="enscript-keyword">movl</span>	(margSize + 4)(%ebp), %ecx		// get byte count
+	<span class="enscript-keyword">subl</span>	$5, %ecx						// skip self &amp; selector and begin rounding
+	<span class="enscript-keyword">shrl</span>	$2, %ecx						// make it a word count (rounding up)
+	<span class="enscript-keyword">jle</span>		LMsgSendvArgsOK					// jump if self/selector are the only parameters
+
+<span class="enscript-function-name">LMsgSendvArgLoop:</span>
+	<span class="enscript-keyword">decl</span>	%ecx							// decrement counter
+	<span class="enscript-keyword">movl</span>	0(%edx, %ecx, 4), %eax			// load one word
+	<span class="enscript-keyword">pushl</span>	%eax							// store one word
+	<span class="enscript-keyword">jg</span>		LMsgSendvArgLoop				// check counter, iterate if non-zero
+
+<span class="enscript-function-name">LMsgSendvArgsOK:</span>
+	<span class="enscript-keyword">movl</span>	(selector + 4)(%ebp), %ecx		// push selector
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">movl</span>	(self + 4)(%ebp),%ecx			// push self
+	<span class="enscript-keyword">pushl</span>	%ecx
+	<span class="enscript-keyword">call</span>	_objc_msgSend					// send the message
+	<span class="enscript-keyword">movl</span>	%ebp,%esp						// restore stack
+	<span class="enscript-keyword">popl</span>	%ebp							// restore %ebp
+
+	<span class="enscript-keyword">ret
+</span>
+/********************************************************************
+ <span class="enscript-keyword">*</span> struct_type	objc_msgSendv_stret    (id			self,
+ <span class="enscript-keyword">*</span>										SEL			op,
+ <span class="enscript-keyword">*</span>										unsigned	arg_size,
+ <span class="enscript-keyword">*</span>										marg_list	arg_frame)<span class="enscript-comment">; 
+ *
+</span> <span class="enscript-keyword">*</span> objc_msgSendv_stret is the struct-return form of msgSendv.
+ <span class="enscript-keyword">*</span> The ABI calls for (sp+4) to be used as the address of the structure
+ <span class="enscript-keyword">*</span> being returned, with the parameters in the succeeding locations.
+ <span class="enscript-keyword">*</span> 
+ <span class="enscript-keyword">*</span> An equally correct way to prototype this routine is:
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> void		objc_msgSendv_stret    (void *		structStorage,
+ <span class="enscript-keyword">*</span>									id			self,
+ <span class="enscript-keyword">*</span>									SEL			op,
+ <span class="enscript-keyword">*</span>									unsigned	arg_size,
+ <span class="enscript-keyword">*</span>									marg_list	arg_frame)<span class="enscript-comment">;
+ *
+</span> <span class="enscript-keyword">*</span> which is useful in, for example, message forwarding where the
+ <span class="enscript-keyword">*</span> structure-return address needs to be passed in.
+ <span class="enscript-keyword">*
+</span> <span class="enscript-keyword">*</span> On entry:	(sp+4)  is the address in which the returned struct is put,
+ <span class="enscript-keyword">*</span>				(sp+8)  is the message receiver,
+ <span class="enscript-keyword">*</span>				(sp+12) is the selector,
+ <span class="enscript-keyword">*</span>				(sp+16) is the size of the marg_list, in bytes,
+ <span class="enscript-keyword">*</span>				(sp+20) is the address of the marg_list
+ <span class="enscript-keyword">********************************************************************/
+</span>
+	<span class="enscript-keyword">.text
+</span>	<span class="enscript-keyword">.globl</span> _objc_msgSendv_stret
+ 	<span class="enscript-keyword">.align</span>	4, 0x90
+<span class="enscript-function-name">_objc_msgSendv_stret:</span>
+	<span class="enscript-keyword">pushl</span>	%ebp									// save %ebp
+	<span class="enscript-keyword">movl</span>	%esp, %ebp								// set stack frame base pointer
+	<span class="enscript-keyword">movl</span>	(struct_return_margs + 4)(%ebp), %edx	// get address of method arguments
+	<span class="enscript-keyword">addl</span>	$12, %edx								// skip struct return, self &amp; selector
+	<span class="enscript-keyword">movl</span>	(struct_return_margSize + 4)(%ebp), %ecx // get byte count
+	<span class="enscript-keyword">subl</span>	$9, %ecx								// skip struct addr, self &amp; selector and begin rounding
+	<span class="enscript-keyword">shrl</span>	$2, %ecx								// make it a word count (rounding up)
+	<span class="enscript-keyword">jle</span>		LMsgSendvStretArgsOK					// jump if self/selector are the only parameters
+
+<span class="enscript-function-name">LMsgSendvStretArgLoop:</span>
+	<span class="enscript-keyword">decl</span>	%ecx									// decrement counter
+	<span class="enscript-keyword">pushl</span>	0(%edx, %ecx, 4)						// copy one word
+	<span class="enscript-keyword">jg</span>		LMsgSendvStretArgLoop					// check counter, iterate if non-zero
+
+<span class="enscript-function-name">LMsgSendvStretArgsOK:</span>
+	<span class="enscript-keyword">pushl</span>	(struct_return_selector + 4)(%ebp)		// push selector
+	<span class="enscript-keyword">pushl</span>	(struct_return_self + 4)(%ebp)			// push self
+	<span class="enscript-keyword">pushl</span>	(struct_return_addr + 4)(%ebp)			// push structure return address
+	<span class="enscript-keyword">call</span>	_objc_msgSend_stret						// send the message
+	<span class="enscript-keyword">movl</span>	%ebp,%esp								// restore stack
+	<span class="enscript-keyword">popl</span>	%ebp									// restore %ebp
+
+	<span class="enscript-keyword">ret
+</span></pre>
+<hr />
+</body></html>
