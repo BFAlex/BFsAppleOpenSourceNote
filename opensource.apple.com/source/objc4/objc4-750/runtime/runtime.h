@@ -53,6 +53,7 @@ typedef struct objc_category *Category;
 typedef struct objc_property *objc_property_t;
 
 struct objc_class {
+    // BFsAlex: 指向该对象对应的类
     Class _Nonnull isa  OBJC_ISA_AVAILABILITY;
 
 #if !__OBJC2__
@@ -61,8 +62,11 @@ struct objc_class {
     long version                                             OBJC2_UNAVAILABLE;
     long info                                                OBJC2_UNAVAILABLE;
     long instance_size                                       OBJC2_UNAVAILABLE;
+    // BFsAlex: 实例对象成员变量列表
     struct objc_ivar_list * _Nullable ivars                  OBJC2_UNAVAILABLE;
+    // BFsAlex: 实例对象方法列表
     struct objc_method_list * _Nullable * _Nullable methodLists                    OBJC2_UNAVAILABLE;
+    // BFsAlex: 缓存常用的方法
     struct objc_cache * _Nonnull cache                       OBJC2_UNAVAILABLE;
     struct objc_protocol_list * _Nullable protocols          OBJC2_UNAVAILABLE;
 #endif
@@ -1849,6 +1853,7 @@ struct objc_ivar_list {
 struct objc_method {
     SEL _Nonnull method_name                                 OBJC2_UNAVAILABLE;
     char * _Nullable method_types                            OBJC2_UNAVAILABLE;
+    // BFsAlex: 方法指针
     IMP _Nonnull method_imp                                  OBJC2_UNAVAILABLE;
 }                                                            OBJC2_UNAVAILABLE;
 
